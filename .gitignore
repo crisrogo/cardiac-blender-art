@@ -1,0 +1,9 @@
+# Input meshes and rendered outputs are added once the paper is published
+meshes/**
+!meshes/README.md
+output/**
+
+# byproducts
+*.npz
+__pycache__/
+*.pyc
