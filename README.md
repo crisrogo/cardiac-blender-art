@@ -11,13 +11,44 @@ for two projects:
    cycle (from a leadless-pacemaker collision study), rendered as a glass
    "cardiac clock" and as a single luminous "one-beat" long exposure.
 
-> **Code only, for now.** The input meshes and the rendered images are **not**
-> included — they will be added once the associated papers are published. The
-> scripts and this tutorial are everything you need to reproduce every figure
-> once you drop the meshes in (see [`meshes/README.md`](meshes/README.md)).
+> **Low-res examples included; full-res and meshes still pending.**
+> Low-resolution versions of every figure and video the pipeline produces now
+> live in [`examples/`](examples/) (see the gallery below), so you can see the
+> expected end result. The full-resolution 4K contest renders and the input
+> meshes are **not** included yet: they will be added once the associated papers
+> are published. The scripts and this tutorial are everything you need to
+> reproduce every figure once you drop the meshes in
+> (see [`meshes/README.md`](meshes/README.md)).
 
 All of this code was written with **Claude (Claude Code)**; the human directed
 the artistic decisions and the iteration.
+
+---
+
+## Gallery
+
+Low-res previews of the expected output. Full listing, with the exact command
+behind each figure, is in [`examples/README.md`](examples/README.md).
+
+**HCM glass hearts** (art competition):
+
+<p>
+  <img src="examples/hcm-glass/queue-white-wireframe.png" width="180" alt="Receding queue of five glass hearts with a white wireframe overlay">
+  <img src="examples/hcm-glass/vshape.png" width="180" alt="V / chevron composition">
+  <img src="examples/hcm-glass/vbow.png" width="180" alt="Inverted-U bow / arch composition">
+  <img src="examples/hcm-glass/vslope.png" width="180" alt="Hearts on an uphill slope">
+  <img src="examples/hcm-glass/rap-hero.png" width="180" alt="Worm's-eye hero close-up">
+</p>
+
+**Cardiac-cycle beat** (stills, plus beating-heart videos in
+[`examples/beat-video/`](examples/beat-video/)):
+
+<p>
+  <img src="examples/beat-stills/tagmap.png" width="180" alt="Anatomy tag map">
+  <img src="examples/beat-stills/one.png" width="180" alt="Single-beat luminous long exposure">
+  <img src="examples/beat-stills/ring.png" width="180" alt="Cardiac clock: 10 phases in a ring">
+  <img src="examples/beat-stills/expo.png" width="180" alt="Long-exposure composite">
+</p>
 
 ---
 
@@ -48,6 +79,8 @@ the artistic decisions and the iteration.
 ├── make_contact_sheet.py     # util: stitch a yaw/roll/pitch sweep into one grid
 ├── finalize_4k.py            # util: flatten to RGB, embed 300 dpi, report size
 ├── to_jpg.py                 # util: high-quality PNG -> JPEG (for upload limits)
+├── beat_video/               # Beat: full beating-heart video pipeline (own README)
+├── examples/                 # low-res previews of every figure + video (tracked)
 ├── meshes/                   # <- put input meshes here (gitignored)
 └── output/                   # <- renders land here (gitignored)
 ```
