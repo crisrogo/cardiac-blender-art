@@ -2,11 +2,14 @@
 
 These are low-resolution versions of the figures and videos the pipeline
 produces, included so you can see the expected end result before you render your
-own. The full-resolution 4K contest submissions and the raw meshes are not
-included here (see the note in the top-level [`README.md`](../README.md)).
+own. The full-resolution 4K contest submissions and the 1080² videos are not
+included here.
 
-Every file below is reproducible from the scripts in this repo once the input
-meshes are in place; the command that produces each one is listed.
+The still figures below are reproducible from the scripts in this repo once you
+have the meshes from Zenodo (see [`../meshes/README.md`](../meshes/README.md));
+the command that produces each one is listed. The commands for the videos are
+just as exact, but their input time series is far too large to archive and is not
+published, so those can only be re-run on equivalent data of your own.
 
 ## HCM glass hearts (art competition)
 
@@ -35,20 +38,36 @@ collision study.
 
 ## Beating-heart videos
 
-A 360-degree orbit of one HCM heart as it beats, rendered in eight materials
-plus a side-by-side comparison grid. Produced by
-[`beat_video/render_beat_video.py`](../beat_video/render_beat_video.py) (see
-[`beat_video/README.md`](../beat_video/README.md)). GitHub shows these as
-download links rather than an inline player.
+The 20-second `story` shot — the heart appears, its fibre tracts light up, the
+camera orbits 360°, the fibres fade as the beat starts, then the heart is
+progressively cut open and the beating cross-section is held. All eight materials
+here are **case 1**; the same commands produce cases 2–5 by pointing `BEAT_DIR` at
+another converted case.
 
-| Video | Material |
-|-------|----------|
-| [`beat-video/grid-materials.mp4`](beat-video/grid-materials.mp4) | all eight materials side by side |
-| [`beat-video/story-realistic-fresh.mp4`](beat-video/story-realistic-fresh.mp4) | realistic fresh tissue |
-| [`beat-video/story-realistic-fibres.mp4`](beat-video/story-realistic-fibres.mp4) | realistic tissue with fibres |
-| [`beat-video/story-wax.mp4`](beat-video/story-wax.mp4) | wax |
-| [`beat-video/story-glass-ruby.mp4`](beat-video/story-glass-ruby.mp4) | ruby glass |
-| [`beat-video/story-porcelain.mp4`](beat-video/story-porcelain.mp4) | porcelain |
-| [`beat-video/story-bronze.mp4`](beat-video/story-bronze.mp4) | bronze |
-| [`beat-video/story-steampunk.mp4`](beat-video/story-steampunk.mp4) | steampunk |
-| [`beat-video/story-hipct.mp4`](beat-video/story-hipct.mp4) | HiP-CT grey |
+These previews are 540², 30 fps, 20 s. The delivered versions are 1080², and each
+also exists as a ProRes 4444 alpha master, a VP9 WebM with alpha, and a
+white-background MP4 fallback — see
+[Delivery encodes](../beat_video/README.md#delivery-encodes).
+
+Each was rendered with
+`MATERIAL=<key> blender --background --factory-startup --python beat_video/render_beat_video.py -- story`
+and encoded with
+`blender ... --python beat_video/encode_video.py -- <case>/story_<key> <out>.mp4 30`.
+
+| Video | `MATERIAL` |
+|-------|------------|
+| [`beat-video/story-realistic-fresh.mp4`](beat-video/story-realistic-fresh.mp4) | `realistic_fresh` |
+| [`beat-video/story-realistic-fibres.mp4`](beat-video/story-realistic-fibres.mp4) | `realistic_fibres` |
+| [`beat-video/story-wax.mp4`](beat-video/story-wax.mp4) | `wax` |
+| [`beat-video/story-glass-ruby.mp4`](beat-video/story-glass-ruby.mp4) | `glass_ruby` |
+| [`beat-video/story-porcelain.mp4`](beat-video/story-porcelain.mp4) | `porcelain` |
+| [`beat-video/story-bronze.mp4`](beat-video/story-bronze.mp4) | `bronze` |
+| [`beat-video/story-steampunk.mp4`](beat-video/story-steampunk.mp4) | `steampunk` |
+| [`beat-video/story-hipct.mp4`](beat-video/story-hipct.mp4) | `hipct` |
+
+[`beat-video/grid-materials.mp4`](beat-video/grid-materials.mp4) tiles all eight
+into one labelled montage (`python beat_video/grid_videos.py <case> 320`, then
+encode `<case>/grid_frames` the same way).
+
+The players for these are embedded in the [top-level README](../README.md#beating-heart-video);
+GitHub shows them as download links when viewed from this folder.

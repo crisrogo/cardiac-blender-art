@@ -5,9 +5,13 @@ chosen myocardial regions; each seed is integrated bidirectionally along the fib
 field (nearest-vertex lookup via a KD-tree, with sign continuity). Tracts are
 stored in RAW coordinates (the renderer applies the shared orientation).
 
-    python make_streamlines.py <ref.vtu> <lon> <out_dir> [spacing_um=3000] [tags=1,2]
+    python make_streamlines.py <ref.vtu> <lon> <out_dir> [spacing_um=3000]
 
-Output: streamlines.npz {points (N,3), offsets (L+1,)}  (polyline l = points[offsets[l]:offsets[l+1]])
+One pass writes all three coverage sets (SETS below):
+streamlines_ventricles.npz (tags 1,2), streamlines_atria.npz (3,4) and
+streamlines_all.npz (1,2,3,4), each {points (N,3), offsets (L+1,)}
+(polyline l = points[offsets[l]:offsets[l+1]]). Run add_nv.py afterwards to add
+the `nv` field the renderer needs to make the tracts follow the beat.
 """
 import os
 import sys

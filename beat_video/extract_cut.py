@@ -15,8 +15,15 @@ frame_XX_full.npz.
 Run with system Python + meshio. The orientation (and thus the cut plane) is the
 shared anatomical one in orient.py — NO PCA.
 
-    python extract_cut.py cut  <ref.vtu> <topo.npz> <out_cut.npz> [offset_frac=0.5]
-    python extract_cut.py full <frame.vtu> <out_full.npz>
+    python extract_cut.py cut        <ref.vtu> <topo.npz> <out_cut.npz> [offset_frac=0.5]
+    python extract_cut.py full       <frame.vtu> <out_full.npz>
+    python extract_cut.py series     <ref.vtu> <topo.npz> <case_dir> [n=12]
+    python extract_cut.py fastseries <ref.vtu> <topo.npz> <case_dir> [n=96]
+
+`cut` writes one depth (offset_frac 0.5 = the half cut). `series`/`fastseries`
+write the progressive stack topo_cut_00.npz (shallowest) .. topo_cut_{n-1}.npz
+(half) that the renderer's `story` mode cuts through; `fastseries` shares the
+face structure across depths, so many depths stay cheap.
 """
 import os
 import sys

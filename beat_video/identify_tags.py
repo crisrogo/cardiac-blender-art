@@ -1,7 +1,9 @@
 """
 Print a per-tag anatomy table for a converted case, to identify which elemTags
 are the valves and the LV endocardium (needed by the orientation in
-render_beat_video.py). Run after topo.npz + frame_00.npz exist.
+render_beat_video.py). Run after topo.npz and a frame exist — either the
+surface-only frame_00.npz (fetch_frames.py) or the full frame_000_full.npz
+(batch_convert_local.py), from which the surface subset is taken.
 
     python identify_tags.py <case_dir>
 
@@ -22,9 +24,24 @@ import numpy as np
 CHAMBERS = {1: "LV", 2: "RV", 3: "LA", 4: "RA", 5: "Ao", 6: "PA"}
 
 
+def load_surface_points(case_dir, topo):
+    """Surface points of the first frame, from whichever frame layout exists:
+    frame_00.npz already IS the surface subset; frame_000_full.npz is the full
+    point array and has to be indexed with topo's surf_vidx."""
+    surf = os.path.join(case_dir, "frame_00.npz")
+    if os.path.exists(surf):
+        return np.load(surf)["points"].astype(np.float64)
+    full = sorted(f for f in os.listdir(case_dir)
+                  if f.startswith("frame_") and f.endswith("_full.npz"))
+    if not full:
+        raise SystemExit(f"no frame_00.npz or frame_*_full.npz in {case_dir} — "
+                         "run fetch_frames.py or batch_convert_local.py first")
+    return np.load(os.path.join(case_dir, full[0]))["points"].astype(np.float64)[topo["surf_vidx"]]
+
+
 def main(case_dir):
-    P = np.load(os.path.join(case_dir, "frame_00.npz"))["points"].astype(np.float64)
     topo = np.load(os.path.join(case_dir, "topo.npz"))
+    P = load_surface_points(case_dir, topo)
     F, T = topo["faces"], topo["face_tags"]
 
     def verts(tg):

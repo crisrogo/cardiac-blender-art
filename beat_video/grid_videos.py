@@ -2,7 +2,7 @@
 so colleagues can compare all materials side by side.
 
     python grid_videos.py <case_dir> [cell_w=320]
-Writes grid_frames/g_XXXX.png then (encode separately with encode_video.py).
+Writes grid_frames/f_XXXX.png; encode separately with encode_video.py.
 """
 import os
 import sys

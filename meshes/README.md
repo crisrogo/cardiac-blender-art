@@ -1,10 +1,19 @@
-# Meshes (added once the paper is published)
+# Meshes
 
-The input meshes are **not** in this repository yet — they'll be added when the
-associated paper is published. Place them here as follows (or point the scripts
-elsewhere with the environment variables noted below).
+The input meshes are **not** stored in this repository (they are far too large for
+git). The two still-figure mesh sets — `sciblend/` and `pacemaker/` — are
+archived on **Zenodo**:
 
-## `sciblend/` — HCM glass-heart figures
+> **DOI: [10.5281/zenodo.XXXXXXX](https://doi.org/10.5281/zenodo.XXXXXXX)**
+> *(placeholder — replace with the record DOI once it is minted)*
+
+Download the record and unpack it here, as below. Every path is overridable with
+the environment variable noted, so you can keep the meshes on another drive.
+
+The **volumetric time series behind the beating-heart video is not published** —
+see `videos_HCM/` at the bottom of this page.
+
+## `sciblend/` — HCM glass-heart figures (TUTORIAL Part A)
 Five Blender files, one per hypertrophic-cardiomyopathy case:
 
 ```
@@ -20,7 +29,7 @@ per-vertex float attribute **`elemTag`**
 (`1`=LV, `2`=RV, `3`=LA, `4`=RA, `5`=aorta, `6`=PA, other=valves/vessels).
 Override the folder with `SCIBLEND_DIR`.
 
-## `pacemaker/` — cardiac-cycle "beat" figures
+## `pacemaker/` — cardiac-cycle "beat" figures (TUTORIAL Part B)
 Eleven motion-tracked surface meshes, one per cardiac-cycle phase
 (`transformed-7` may be absent — the code tolerates gaps):
 
@@ -35,3 +44,32 @@ ASCII VTK **`POLYDATA`** with a per-cell **`elemTag`** scalar
 (`0`=myocardial shell, `40`/`10`=ventricular chambers,
 `1`/`2`/`30`=inner structures — papillary muscles, moderator band, valve).
 Override the folder with `VTK_DIR`.
+
+## `videos_HCM/` — beating-heart video (TUTORIAL Part C)
+
+> **Not on Zenodo, and not otherwise published.** At ~300 MB per timestep, ~100
+> timesteps per case and five cases, the series runs to roughly 30 GB per case —
+> impractical to archive, so it is not part of the record above. Part C therefore
+> cannot be re-run from published data: what the repo gives you is the exact
+> transformation, not the input. The scripts are not specific to these files
+> though — any tetrahedral time series with the same structure (see below) will
+> go through the pipeline unchanged.
+
+The HCM volumetric simulation time series, one folder per case:
+
+```
+meshes/videos_HCM/case1/HCM1_532_0000.vtu … HCM1_532_0101.vtu
+meshes/videos_HCM/case1/HCM1_532.lon
+```
+
+Each `.vtu` is **~300 MB** (≈0.75 M points, ≈3.9 M tetrahedra, units in
+micrometres) with point `displacement` and cell `elemTags` / `fibres`; the `.lon`
+is the openCARP fibre file, one row per tetrahedron in the same order as the VTU.
+The tag convention is the same as `sciblend/` for chambers and vessels
+(`1`–`6`); the higher tags are valves, veins and endocardial surfaces and are
+**case-specific** — run `beat_video/identify_tags.py` per case to find them.
+
+There is no fixed location for these: the source directory is passed on the
+command line, and the converted frames land in the case directory
+(`output/beat_video/<case>`, override with `BEAT_DIR`). The five published
+videos correspond to `case1` … `case5`.

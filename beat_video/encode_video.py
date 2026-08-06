@@ -1,7 +1,10 @@
-"""Encode a PNG frame sequence (f_XXXX.png) to a video using Blender's bundled ffmpeg.
-    blender --background --factory-startup --python encode_video.py -- <frames_dir> <out> <fps> [fmt=mp4]
-      fmt = mp4  -> H.264 MP4 (RGBA frames composited over black)
-            mov  -> QTRLE .mov WITH ALPHA (transparent background preserved)
+"""Encode a PNG frame sequence (f_XXXX.png) to an H.264 MP4 using Blender's bundled ffmpeg.
+
+    blender --background --factory-startup --python encode_video.py -- <frames_dir> <out.mp4> <fps>
+
+Blender's FFMPEG output has no RGBA mode, so this only makes the opaque MP4
+(RGBA frames composited over black). For the transparent/alpha deliverables use
+ffmpeg directly — see the "Delivery encodes" section of README.md.
 """
 import bpy, os, sys
 
@@ -21,19 +24,15 @@ sc.render.fps = fps
 img = bpy.data.images.load(os.path.join(frames_dir, files[0]))
 sc.render.resolution_x, sc.render.resolution_y = img.size
 sc.render.resolution_percentage = 100
+# Blender's FFMPEG output has no RGBA mode, so it can only make the opaque MP4
+# (RGBA frames composited over black). The transparent video is made with ffmpeg.
 sc.render.image_settings.file_format = 'FFMPEG'
-if fmt == "mov":
-    sc.render.film_transparent = True
-    sc.render.image_settings.color_mode = 'RGBA'
-    sc.render.ffmpeg.format = 'QUICKTIME'
-    sc.render.ffmpeg.codec = 'QTRLE'                 # lossless RGB+alpha
-else:
-    sc.render.film_transparent = False
-    sc.render.image_settings.color_mode = 'RGB'
-    sc.render.ffmpeg.format = 'MPEG4'
-    sc.render.ffmpeg.codec = 'H264'
-    sc.render.ffmpeg.constant_rate_factor = 'HIGH'
-    sc.render.ffmpeg.ffmpeg_preset = 'GOOD'
+sc.render.film_transparent = False
+sc.render.image_settings.color_mode = 'RGB'
+sc.render.ffmpeg.format = 'MPEG4'
+sc.render.ffmpeg.codec = 'H264'
+sc.render.ffmpeg.constant_rate_factor = 'HIGH'
+sc.render.ffmpeg.ffmpeg_preset = 'GOOD'
 sc.render.filepath = out_path
 bpy.ops.render.render(animation=True)
-print("ENCODED", fmt, "->", out_path, len(files), "frames @", fps, "fps")
+print("ENCODED mp4 ->", out_path, len(files), "frames @", fps, "fps")

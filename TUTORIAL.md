@@ -155,12 +155,121 @@ Add `test` to any beat command for a fast 700², 48-sample preview, e.g.
 
 ---
 
+## Part C — the beating-heart video
+
+**Data:** the HCM volumetric time series, one `.vtu` per timestep plus the case's
+`.lon` fibre file. Unlike Parts A and B, **this input is not published** — it is
+roughly 30 GB per case, too large to archive (see `meshes/README.md`). The steps
+below are exact, but you will need an equivalent tetrahedral time series of your
+own to follow them. This is a different pipeline from
+Parts A and B — it lives in `beat_video/`, which has its own README with the full
+reference (every env var, every material, the delivery encodes). This section is
+the short path from meshes to the finished 20-second video.
+
+Everything for one case lives in one directory; the default is
+`output/beat_video/case1`, overridable with `BEAT_DIR`. Below, `<case>` is that
+directory, `<ref.vtu>` is any one timestep and `<lon>` the fibre file.
+
+### C1. Surface topology (once per case)
+The node connectivity never changes, so the outer-surface triangulation is
+extracted once and reused for every frame:
+
+```
+python beat_video/convert_vtu_surface.py topo <ref.vtu> <case>/topo.npz
+```
+
+### C2. Convert the timesteps
+```
+python beat_video/batch_convert_local.py <src_dir> <case> --prefix HCM1_532_ --first 0 --last 101
+```
+→ `<case>/frame_000_full.npz …` — the full deformed point array per timestep.
+The renderer reads **only** `frame_*_full.npz`, because the cross-section needs
+interior vertices that the surface subset does not contain.
+
+If the source `.vtu` files are OneDrive cloud-only placeholders, hydrate them
+first with `fetch_frames.py` (it overlaps the ~20 min-per-file downloads); see
+`beat_video/README.md`.
+
+### C3. Identify this case's valve tags
+```
+python beat_video/identify_tags.py <case>
+```
+→ a per-tag table. The valves are the tags whose barycentre sits between the
+relevant chamber pair; you need mitral, tricuspid, aortic, pulmonary and the
+LV endocardium. Case 1 gives `7, 8, 9, 10` and `25`, which are the defaults —
+for any other case pass `VALVE_TAGS` / `LV_ENDO_TAG` to every render command.
+
+### C4. Cross-section depths + fibres (needed by the `story` mode only)
+```
+python beat_video/extract_cut.py fastseries <ref.vtu> <case>/topo.npz <case> 12
+python beat_video/add_fibres.py      <ref.vtu> <lon> <case>
+python beat_video/make_streamlines.py <ref.vtu> <lon> <case> 3000
+python beat_video/add_nv.py <case>
+```
+→ `topo_cut_00.npz … topo_cut_11.npz` (the progressive cut), `fibres.npz` (the
+anisotropy direction) and `streamlines_*.npz` (the tracts, with the
+nearest-vertex index that lets them follow the beat).
+
+### C5. Check the orientation before rendering anything long
+```
+blender --background --factory-startup --python beat_video/render_beat_video.py -- turntable
+```
+→ `<case>/turntable_00_az180.png …`, 8 views 45° apart. Confirm the first one is
+anterior, apex down. **Look at it** — the orientation is anatomical, not
+self-checking, so this is the step that catches a wrong tag number.
+
+### C6. Pick a material
+```
+blender --background --factory-startup --python beat_video/render_beat_video.py -- materials
+```
+→ `<case>/material_<key>.png` for every look in the library: `realistic_fresh`,
+`realistic_fibres`, `wax`, `glass_ruby`, `porcelain`, `bronze`, `steampunk`,
+`steampunk_flesh`, `hipct`, `fibres_debug`.
+
+### C7. Render the story
+```powershell
+$env:MATERIAL="realistic_fresh"
+$env:TRANSPARENT="1"      # RGBA frames, so the alpha deliverables are possible
+& $blender --background --factory-startup --python beat_video/render_beat_video.py -- story
+```
+→ `<case>/story_realistic_fresh/f_0000.png … f_0599.png` (20 s at 30 fps).
+Set `TEST=1` first for a 720², 16-sample rehearsal.
+
+### C8. Encode
+```
+# opaque MP4
+blender --background --factory-startup --python beat_video/encode_video.py -- <case>/story_realistic_fresh <case>/story_realistic_fresh.mp4 30
+
+# alpha master + the two delivery formats (needs ffmpeg on PATH)
+ffmpeg -framerate 30 -i <case>/story_realistic_fresh/f_%04d.png -c:v prores_ks -profile:v 4444 -pix_fmt yuva444p10le <case>/story_realistic_fresh_alpha.mov
+ffmpeg -i <case>/story_realistic_fresh_alpha.mov -c:v libvpx-vp9 -pix_fmt yuva420p -b:v 0 -crf 30 -row-mt 1 -auto-alt-ref 0 <case>/story_realistic_fresh_alpha.webm
+ffmpeg -i <case>/story_realistic_fresh_alpha.mov -filter_complex "color=white:s=1080x1080:r=30[bg];[bg][0:v]overlay=shortest=1,format=yuv420p" -c:v libx264 -crf 18 -preset medium <case>/story_realistic_fresh_white_1080.mp4
+```
+The ProRes `.mov` is the master (it is large — ~700 MB for 20 s); the WebM keeps
+the transparency for slides and the web, and the white MP4 is the fallback for
+players that ignore alpha.
+
+### C9. (optional) The material comparison grid
+```
+python beat_video/grid_videos.py <case> 320
+blender --background --factory-startup --python beat_video/encode_video.py -- <case>/grid_frames <case>/grid_materials.mp4 30
+```
+→ every `story_<material>/` sequence tiled into one labelled 4-column montage.
+
+---
+
 ## Notes
 
 - **Materials:** chambers are coloured glass (Principled BSDF, transmission);
   the "hero" structure is a glowing emissive wireframe; tone-mapping is AgX
   High-Contrast with a fog-glow bloom in the compositor.
-- **Orientation** is derived from the mesh anatomy (HCM) or PCA (beat) and baked
-  into vertex coordinates, so it's stable across frames.
+- **Orientation** is derived from the mesh anatomy (Part A) or PCA (Part B) and
+  baked into vertex coordinates, so it's stable across frames. Part C uses
+  neither: PCA fails on a whole heart with atria and great vessels attached, so
+  the video pipeline orients itself from the valve barycentres and the LV apex
+  (`beat_video/orient.py`).
+- **Engines:** Parts A and B are CPU Cycles. Part C defaults to EEVEE (fast
+  enough for 600-frame sequences) and switches to Cycles for the looks that need
+  real transmission or subsurface scattering.
 - **Reproducibility:** Cycles + denoising is deterministic for a given Blender
   version; expect tiny differences across versions/CPUs.

@@ -1,3 +1,6 @@
 numpy
 Pillow
 pypdf
+# beat_video/ only: VTU reading + KD-trees for the fibre tracts
+meshio
+scipy
