@@ -117,12 +117,15 @@ see [Delivery encodes](beat_video/README.md#delivery-encodes).)*
 ├── heart_contest_render.py   # HCM: baseline queue, 6 wireframe variants, 4K final
 ├── heart_compositions.py     # HCM: V / bow / uphill-slope / worm's-eye + raw + 4K
 ├── heart_orient_check.py     # HCM: solid-colour orientation QA
+├── cover_render.py           # Cover: five HCM glass hearts over a grid / FE-mesh floor
+├── sweep_cover.sh            # Cover: low-res sweep of every cover concept
 ├── beat_render.py            # Beat: tagmap / one / ring / expo
 ├── convert_vtk.py            # Beat: transformed-*.vtk  ->  .npz
 ├── analyze_tags.py           # Beat: per-structure anatomy + motion stats
 ├── vtk_scan.py               # util: print a VTK file's schema
 ├── make_contact_sheet.py     # util: stitch a yaw/roll/pitch sweep into one grid
 ├── finalize_4k.py            # util: flatten to RGB, embed 300 dpi, report size
+├── finalize_cover.py         # util: tag the dpi that declares 19.7 cm (JMCC cover spec)
 ├── to_jpg.py                 # util: high-quality PNG -> JPEG (for upload limits)
 ├── beat_video/               # Video: full beating-heart pipeline (own README)
 ├── examples/                 # low-res previews of every figure + video (tracked)
@@ -165,6 +168,9 @@ blender --background --factory-startup --python beat_render.py -- ring
 
 # the beating-heart video (after converting a case — see TUTORIAL.md Part C):
 blender --background --factory-startup --python beat_video/render_beat_video.py -- story
+
+# a cover render: five hearts on the finite-element mesh floor
+blender --background --factory-startup --python cover_render.py -- arc floor=femesh test
 ```
 
 **Step-by-step instructions to reproduce every figure and video are in
