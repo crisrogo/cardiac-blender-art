@@ -24,6 +24,26 @@ WCCM-ECCOMAS 2026 "Arts & Science" competition.
 | [`hcm-glass/vslope.png`](hcm-glass/vslope.png) | `heart_compositions.py` | `blender ... --python heart_compositions.py -- vslope` |
 | [`hcm-glass/rap-hero.png`](hcm-glass/rap-hero.png) | `heart_compositions.py` | `blender ... --python heart_compositions.py -- raphero` |
 
+## JMCC cover art
+
+The same five HCM hearts staged over a "digital world" floor, for a journal
+cover. `floor=femesh` is a jittered triangulated plane shaded with a wireframe
+node — the ground reads as a finite-element mesh; `floor=grid` is the regular
+square-cell version. Every render is square, and `finalize_cover.py` tags the
+4K version with the dpi that declares 19.7 cm.
+
+| Figure | Script | Command |
+|--------|--------|---------|
+| [`cover/arc-femesh.png`](cover/arc-femesh.png) | `cover_render.py` | `blender ... --python cover_render.py -- arc floor=femesh` |
+| [`cover/vshape-femesh.png`](cover/vshape-femesh.png) | `cover_render.py` | `blender ... --python cover_render.py -- vshape floor=femesh` |
+| [`cover/arc-grid.png`](cover/arc-grid.png) | `cover_render.py` | `blender ... --python cover_render.py -- arc floor=grid elev=55` |
+| [`cover/tree-grid.png`](cover/tree-grid.png) | `cover_render.py` | `blender ... --python cover_render.py -- tree floor=grid elev=35` |
+| [`cover/mirror-grid.png`](cover/mirror-grid.png) | `cover_render.py` | `blender ... --python cover_render.py -- mirror floor=grid` |
+
+These are the 1024² `preview` renders. Add `4k` to the command for the 4096²
+submission version, or `test` for a fast 512² check; `./sweep_cover.sh test`
+renders the concepts side by side.
+
 ## Cardiac-cycle "beat" stills
 
 One heart across the 10 phases of the cardiac cycle, from a leadless-pacemaker

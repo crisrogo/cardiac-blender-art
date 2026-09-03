@@ -46,6 +46,16 @@ behind each figure, is in [`examples/README.md`](examples/README.md).
   <img src="examples/hcm-glass/rap-hero.png" width="180" alt="Worm's-eye hero close-up">
 </p>
 
+**JMCC cover art** (five hearts on a glowing floor):
+
+<p>
+  <img src="examples/cover/arc-femesh.png" width="180" alt="Five hearts standing on a green finite-element mesh floor">
+  <img src="examples/cover/vshape-femesh.png" width="180" alt="V composition over the mesh floor, hero heart in wireframe">
+  <img src="examples/cover/arc-grid.png" width="180" alt="Arc of five hearts on a square Tron grid, seen from 55 degrees">
+  <img src="examples/cover/tree-grid.png" width="180" alt="Hearts on the grid with the glowing cluster tree drawn between them">
+  <img src="examples/cover/mirror-grid.png" width="180" alt="Single heart above its coarse mesh reflection">
+</p>
+
 **Cardiac-cycle beat** (stills):
 
 <p>
