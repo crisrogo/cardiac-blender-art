@@ -192,6 +192,64 @@ World axes are X=right, Y=anterior, Z=up. Defaults are for **case 1**
 (`mitral=7, tricuspid=8, aortic=9, pulmonary=10, LV-endo=25`); re-run
 `identify_tags.py` per case and override with `VALVE_TAGS` / `LV_ENDO_TAG`.
 
+## Electrical activation video (EP)
+
+A second video from the same case directories: the **end-diastolic** heart
+(`frame_000_full.npz`, no motion, fixed anterior camera) with the electrical
+wave spreading over it, from reaction-eikonal activation times. Low-res examples
+are in [`../examples/ep-video/`](../examples/ep-video/).
+
+**The activation times are published** on Zenodo,
+[record 21720235](https://zenodo.org/records/21720235) — one
+`HCMn_EP_light.tar.zst` per patient (230–380 MB, needs `zstd`, or Python's
+`zstandard` to unpack). Each holds 120 parameter samples:
+`activation_maps/<id>.dat` has one activation time (ms) per mesh node, in the
+same node order as the mechanics VTU (`-1` = never activated: vessels, valve
+planes), `inputs/json_files/<id>.json` the sample's parameters (`CV_f_v`,
+`ani_ratio_v`, `k_FEC`, `CV_f_a`, `ani_ratio_a`, `k_BB`), `default.json` the
+baseline parameters and `tags_EP.json` the region tags. No sample sits exactly on
+the baseline; **sample 74** is the nearest one and is what the examples use (the
+same parameter design is shared by all patients). The geometry still comes from
+the unpublished time series, so only the activation half of this is on Zenodo.
+
+The atria and the ventricles are both activated from `t=0` in the data. The
+renderer shifts every ventricular time by `AV_DELAY` (default 100 ms, measured
+from atrial onset), and colours each region on its own time scale.
+
+```bash
+# 1. activation times -> <case>/ep_74.npz (surface ATs, atria/ventricles/context per face)
+python prepare_ep.py <unpacked HCM1_EP> <case> 74
+
+# 2. one beat, 1 sim-ms per frame, transparent RGBA -> <case>/ep_74/<style>_<finish>/raw/
+STYLE=wave FINISH=matte blender --background --factory-startup --python render_ep_video.py -- beat
+
+# 3a. the finished cut: heart only, white, 5x slow, real 800 ms cycle, 3 beats
+python compose_ep_video.py <case>/ep_74/wave_matte white ep_wave.mp4 --plain --slow 5 --cl 800 --beats 3
+
+# 3b. or the annotated version: ms clock, beat timeline, one CARTO colour bar per region
+python compose_ep_video.py <case>/ep_74/map_matte white ep_map.mp4 --beats 3 --label "HCM patient 1"
+```
+
+`still <t_ms> ...` renders single frames (to `<case>/ep_74/stills/`) for trying
+looks without rendering a whole beat. A 1080² beat is ~250 frames and takes a few
+minutes in EEVEE. Because the beat is rendered at 1 ms resolution, `--plain` can
+cut any speed from the same frames. Each video frame averages the renders its
+shutter covers (`--shutter`, a fraction of a frame), which gives motion blur.
+
+| Knob | Values | What it does |
+|------|--------|--------------|
+| `STYLE` | `wave` | optical-mapping-like hot front with a fading tail on neutral tissue |
+| | `map` (default) | CARTO filling map: tissue takes its activation colour (red early → purple late) and keeps it, 10 ms isochrones (`ISO_MS`) of constant surface width, bright leading edge |
+| `FINISH` | `matte` (default), `glow`, `tissue` | plain shaded, emissive colours on a dark body, or fresh-tissue base with SSS + coat |
+| `AV_DELAY` | `100` | ms between atrial and ventricular onset |
+| `MS_PER_FRAME` | `1.0` | sim ms per rendered frame |
+| `SAMPLE` | `74` | which `ep_<id>.npz` to use |
+| `CAM_ELEV`, `START_AZ` | `8`, `180` | camera; the anterior view hides most of the atria |
+| `LINE_W` | `0.0045` | isochrone half-width in world units (heart = 2 tall) |
+
+The camera, `VALVE_TAGS`, `LV_ENDO_TAG`, `RES`, `SAMPLES` and `TEST` behave as in
+`render_beat_video.py`; cases 1 and 3 both use the default valve tags.
+
 ## Other scripts
 
 - `render_streamlines.py` — standalone fibre-tract stills (glowing tubes over a

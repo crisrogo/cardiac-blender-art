@@ -14,13 +14,19 @@ for three projects:
    choreographed shot: the fibre tracts light up, the camera orbits, the heart
    beats, then it is cut open and the beating cross-section is held. Eight
    material looks, rendered for all five cases.
+4. **The electrical activation video** — the end-diastolic heart with the
+   reaction-eikonal activation wave spreading over it (atria, then the
+   ventricles after the AV delay), as a travelling front or a CARTO-style
+   activation map.
 
 > **Meshes are on Zenodo; low-res examples are in this repo.**
 > The meshes behind projects 1 and 2 are archived on Zenodo — see
 > [`meshes/README.md`](meshes/README.md) for the DOI, the expected layout and the
 > tag conventions. The volumetric time series behind project 3 is ~30 GB per case
 > and is **not** published, so that pipeline can be re-run on equivalent data but
-> not on ours. Low-resolution versions of every figure and video the pipeline
+> not on ours. The activation times behind project 4 are published in their own
+> [Zenodo record](https://zenodo.org/records/21720235); its geometry is that same
+> unpublished series. Low-resolution versions of every figure and video the pipeline
 > produces live in [`examples/`](examples/) (gallery below), so you can see the
 > expected end result before rendering your own. The full-resolution 4K contest
 > renders and the 1080² videos are not tracked here — they are what the scripts
@@ -103,6 +109,32 @@ not play them inline, the links open the same files directly. These are 540²
 previews; the pipeline renders 1080² and also produces alpha-channel versions —
 see [Delivery encodes](beat_video/README.md#delivery-encodes).)*
 
+### Electrical activation video
+
+The wave on HCM1 and HCM3 (5× slow, real 800 ms cycle), and the annotated CARTO map:
+
+<table>
+  <tr>
+    <td width="50%">
+      <video src="https://github.com/crisrogo/cardiac-blender-art/raw/main/examples/ep-video/ep-wave-hcm1.mp4" controls loop muted width="100%"></video>
+    </td>
+    <td width="50%">
+      <video src="https://github.com/crisrogo/cardiac-blender-art/raw/main/examples/ep-video/ep-wave-hcm3.mp4" controls loop muted width="100%"></video>
+    </td>
+  </tr>
+  <tr>
+    <td align="center"><a href="examples/ep-video/ep-wave-hcm1.mp4">HCM1</a></td>
+    <td align="center"><a href="examples/ep-video/ep-wave-hcm3.mp4">HCM3</a></td>
+  </tr>
+</table>
+
+<video src="https://github.com/crisrogo/cardiac-blender-art/raw/main/examples/ep-video/ep-map-overlays-hcm1.mp4" controls loop muted width="100%"></video>
+
+[`examples/ep-video/ep-map-overlays-hcm1.mp4`](examples/ep-video/ep-map-overlays-hcm1.mp4) ·
+every look side by side: [`examples/ep-video/looks.png`](examples/ep-video/looks.png)
+
+<img src="examples/ep-video/looks.png" width="100%" alt="The two EP styles (wave, map) in three finishes, on black and on white">
+
 ---
 
 ## Requirements
@@ -137,7 +169,7 @@ see [Delivery encodes](beat_video/README.md#delivery-encodes).)*
 ├── finalize_4k.py            # util: flatten to RGB, embed 300 dpi, report size
 ├── finalize_cover.py         # util: tag the dpi that declares 19.7 cm (JMCC cover spec)
 ├── to_jpg.py                 # util: high-quality PNG -> JPEG (for upload limits)
-├── beat_video/               # Video: full beating-heart pipeline (own README)
+├── beat_video/               # Videos: beating heart + electrical activation (own README)
 ├── examples/                 # low-res previews of every figure + video (tracked)
 ├── meshes/                   # <- put input meshes here (gitignored; see Zenodo)
 └── output/                   # <- renders land here (gitignored)
@@ -179,10 +211,15 @@ blender --background --factory-startup --python beat_render.py -- ring
 # the beating-heart video (after converting a case — see TUTORIAL.md Part C):
 blender --background --factory-startup --python beat_video/render_beat_video.py -- story
 
+# the electrical activation video (activation times from Zenodo record 21720235):
+python  beat_video/prepare_ep.py <unpacked HCM1_EP> output/beat_video/case1 74
+blender --background --factory-startup --python beat_video/render_ep_video.py -- beat
+python  beat_video/compose_ep_video.py output/beat_video/case1/ep_74/map_matte white ep.mp4
+
 # a cover render: five hearts on the finite-element mesh floor
 blender --background --factory-startup --python cover_render.py -- arc floor=femesh test
 ```
 
 **Step-by-step instructions to reproduce every figure and video are in
 [`TUTORIAL.md`](TUTORIAL.md)** (Part A: glass hearts, Part B: beat stills,
-Part C: the video).
+Part C: the video, Part D: the activation video).

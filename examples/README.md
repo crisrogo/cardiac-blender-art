@@ -91,3 +91,26 @@ encode `<case>/grid_frames` the same way).
 
 The players for these are embedded in the [top-level README](../README.md#beating-heart-video);
 GitHub shows them as download links when viewed from this folder.
+
+## Electrical activation videos
+
+The end-diastolic heart (no motion, fixed anterior view) with the electrical
+wave spreading over it: reaction-eikonal activation times from the
+[Zenodo EP record](https://zenodo.org/records/21720235), sample 74 (the nearest
+to the baseline parameters), atria first and the ventricles 100 ms later. The
+activation times are published. The geometry comes from the same unpublished time
+series as the beating-heart videos, so these can be re-run on that data or on your
+own. Full pipeline:
+[Electrical activation video](../beat_video/README.md#electrical-activation-video-ep).
+
+| Output | What | Command |
+|--------|------|---------|
+| [`ep-video/ep-wave-hcm1.mp4`](ep-video/ep-wave-hcm1.mp4) | HCM1, travelling wave, white, 5× slow, 800 ms cycle, 3 beats | `STYLE=wave FINISH=matte blender ... --python beat_video/render_ep_video.py -- beat`, then `python beat_video/compose_ep_video.py <case>/ep_74/wave_matte white out.mp4 --plain --slow 5 --cl 800 --beats 3` |
+| [`ep-video/ep-wave-hcm3.mp4`](ep-video/ep-wave-hcm3.mp4) | HCM3, same settings | as above with `BEAT_DIR=<case3>` |
+| [`ep-video/ep-map-overlays-hcm1.mp4`](ep-video/ep-map-overlays-hcm1.mp4) | HCM1, CARTO activation map with isochrones, ms clock, beat timeline and per-region colour bars (33× slow) | `STYLE=map FINISH=matte blender ... -- beat`, then `python beat_video/compose_ep_video.py <case>/ep_74/map_matte white out.mp4 --beats 2 --label "HCM patient 1"` |
+| [`ep-video/looks.png`](ep-video/looks.png) | every `STYLE` × `FINISH` at t = 160 ms, on black and on white | `STYLE=<s> FINISH=<f> blender ... -- still 160` for each combination |
+
+The wave previews are 540² crops of the 1920×1080 videos; the map preview is
+960×540 and was cut from a 720² `TEST=1` render. All of them are rendered with
+a transparent background, so the same frames give the black-background versions
+(`black` instead of `white`).

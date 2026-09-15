@@ -73,3 +73,17 @@ There is no fixed location for these: the source directory is passed on the
 command line, and the converted frames land in the case directory
 (`output/beat_video/<case>`, override with `BEAT_DIR`). The five published
 videos correspond to `case1` … `case5`.
+
+## EP activation times — electrical activation video (TUTORIAL Part D)
+
+> **Published separately**, on Zenodo:
+> [record 21720235](https://zenodo.org/records/21720235) (*Electrophysiology
+> simulations in hypertrophic cardiomyopathy patients*).
+
+One `HCMn_EP_light.tar.zst` per patient. Each unpacks to `HCMn_EP/` with 120
+reaction-eikonal activation-time maps (`activation_maps/<id>.dat`, one value in
+ms per node of the `videos_HCM` mesh, `-1` where the tissue is not excitable) and
+their inputs (`inputs/json_files/<id>.json`, `default.json`, `tags_EP.json`).
+There is no fixed location; the unpacked folder is passed to
+`beat_video/prepare_ep.py`. The geometry these values sit on is the unpublished
+time series above.

@@ -1,6 +1,6 @@
 # Tutorial — reproducing every figure
 
-This walks through both projects step by step. Every render lands in `output/`.
+This walks through every project step by step. Every render lands in `output/`.
 
 Throughout, `blender` means the Blender 4.5 executable. On Windows you'll
 usually need the full path, so either add it to your `PATH` or substitute it:
@@ -255,6 +255,59 @@ python beat_video/grid_videos.py <case> 320
 blender --background --factory-startup --python beat_video/encode_video.py -- <case>/grid_frames <case>/grid_materials.mp4 30
 ```
 → every `story_<material>/` sequence tiled into one labelled 4-column montage.
+
+---
+
+## Part D — the electrical activation video
+
+The end-diastolic heart of a converted Part C case, with the reaction-eikonal
+activation wave spreading over it. It needs `topo.npz` and `frame_000_full.npz`
+from C1–C2 (and the case's valve tags from C3), plus the activation times from
+Zenodo.
+
+### D1. Get the activation times
+Download `HCMn_EP_light.tar.zst` for the patient from
+<https://zenodo.org/records/21720235> and unpack it anywhere (`tar --zstd -xf`,
+or, without `zstd`, `pip install zstandard` and extract with Python's `tarfile`).
+You get `HCMn_EP/activation_maps/<id>.dat` (120 samples) and
+`HCMn_EP/inputs/json_files/` (each sample's parameters, `default.json`,
+`tags_EP.json`).
+
+### D2. Map a sample onto the case surface
+```
+python beat_video/prepare_ep.py <path>/HCM1_EP output/beat_video/case1 74
+```
+→ `<case>/ep_74.npz`. It stops if the node count does not match the case (wrong
+patient). Sample 74 is the nearest to the baseline parameters.
+
+### D3. Try the looks on single frames
+```powershell
+$env:BEAT_DIR="output\beat_video\case1"; $env:TEST="1"
+$env:STYLE="wave"; $env:FINISH="matte"     # STYLE map|wave, FINISH matte|glow|tissue
+& $blender --background --factory-startup --python beat_video/render_ep_video.py -- still 60 160
+```
+→ `<case>/ep_74/stills/wave_matte_el08_t060.png …` (t in ms from atrial onset;
+the ventricles start at `AV_DELAY` = 100 ms).
+
+### D4. Render one beat
+```powershell
+Remove-Item Env:TEST
+& $blender --background --factory-startup --python beat_video/render_ep_video.py -- beat
+```
+→ `<case>/ep_74/wave_matte/raw/f_NNNN.png`: transparent RGBA frames, 1 sim-ms
+apart, plus `meta.json`. It skips frames that already exist, so an interrupted
+render can simply be restarted.
+
+### D5. Compose + encode
+```
+# heart only, white, 5x slower than real time, real 800 ms cycle, 3 beats
+python beat_video/compose_ep_video.py output/beat_video/case1/ep_74/wave_matte white ep_wave_case1.mp4 --plain --slow 5 --cl 800 --beats 3
+
+# annotated: ms clock, beat timeline, CARTO colour bars (map style)
+python beat_video/compose_ep_video.py output/beat_video/case1/ep_74/map_matte white ep_map_case1.mp4 --beats 3 --label "HCM patient 1"
+```
+Use `black` for a black background. Changing the speed only needs this step, not
+a new render.
 
 ---
 
