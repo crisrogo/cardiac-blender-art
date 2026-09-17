@@ -250,6 +250,43 @@ shutter covers (`--shutter`, a fraction of a frame), which gives motion blur.
 The camera, `VALVE_TAGS`, `LV_ENDO_TAG`, `RES`, `SAMPLES` and `TEST` behave as in
 `render_beat_video.py`; cases 1 and 3 both use the default valve tags.
 
+### EP + contraction (`mech`)
+
+The same look on the **beating** heart: every mechanics frame of the case, coloured
+by the activation times that actually drove that mechanics run. Those are one
+`vm_act_seq.dat` per run (one value per node, ms within the cycle), named after the
+run's cycle number, which is the number in the VTU file names
+(`HCM1_532_*.vtu` -> `HCM1_cycle_532_vm_act_seq.dat`). They are **not** part of the
+Zenodo record. In them the atria fire at the end of the cycle (HCM1: ventricles
+2–97 ms, atria 846–988 ms), so the AV delay is already in the data and none is
+added. Mechanics frames are 10 ms apart (`DT_FRAME`), so a cycle is
+`n_frames × 10 ms` (HCM1 1020 ms, HCM3 830 ms). That spacing was checked against
+the data: when each atrial patch starts contracting follows this activation map
+with ρ ≈ 0.95.
+
+```bash
+python prepare_ep.py HCM1_cycle_532_vm_act_seq.dat <case1> cycle532        # -> ep_cycle532.npz
+SAMPLE=cycle532 STYLE=wave FINISH=matte blender --background --factory-startup --python render_ep_video.py -- mech
+python compose_ep_video.py <case1>/ep_cycle532/wave_matte white ep_mech.mp4 --mech          # 6 beats
+```
+
+The wave is evaluated modulo the cycle, so the atrial wave at the end of one loop
+runs straight into the ventricles of the next. `mech` plans the video timeline
+before rendering:
+- the loop starts `LEAD_MS` (40) before the atria fire and plays at `SLOW` (default
+  **2**) times slower than real time;
+- the diastasis is compressed. It runs from the moment the ventricles have relaxed
+  (the median ventricular surface-area change per frame drops below 0.12 %) to the
+  next atrial activation, and plays in `QUIET_S` (0.25 s), so the next beat starts
+  right after the previous one ends;
+- while a wave is visible, each video frame averages `SUBSAMPLES` (9) renders
+  spread over `SHUTTER` (1.0) of a frame, which gives motion blur.
+
+The renders are keyed by cycle time (`raw_mech/t_NNNNN.png`, 0.1 ms), so re-planning
+reuses any time already rendered. Each case is ~200 renders at 2× (~5 min at 1080²),
+~320 at `SLOW=7 SHUTTER=0.5 SUBSAMPLES=3`. The camera frames the whole motion rather
+than end-diastole, so the heart sits slightly smaller than in the static video.
+
 ## Other scripts
 
 - `render_streamlines.py` — standalone fibre-tract stills (glowing tubes over a

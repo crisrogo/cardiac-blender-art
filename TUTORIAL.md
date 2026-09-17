@@ -309,6 +309,21 @@ python beat_video/compose_ep_video.py output/beat_video/case1/ep_74/map_matte wh
 Use `black` for a black background. Changing the speed only needs this step, not
 a new render.
 
+### D6. EP + contraction on the beating heart
+This needs every converted frame of the case (C2) and the activation times that
+drove that mechanics run, `HCMn_cycle_<N>_vm_act_seq.dat`. `<N>` is the number in
+the VTU names, e.g. `HCM1_532_*.vtu` -> cycle 532.
+```powershell
+python beat_video/prepare_ep.py HCM1_cycle_532_vm_act_seq.dat output/beat_video/case1 cycle532
+$env:BEAT_DIR="outputeat_video\case1"; $env:SAMPLE="cycle532"; $env:STYLE="wave"; $env:FINISH="matte"
+& $blender --background --factory-startup --python beat_video/render_ep_video.py -- mech
+python beat_video/compose_ep_video.py output/beat_video/case1/ep_cycle532/wave_matte white ep_mech_case1.mp4 --mech
+```
+→ 2× slower than real time, the pause between beats shortened to 0.25 s, 6 beats.
+The speed is fixed when the `mech` render plans the timeline. For another speed,
+re-run the render with e.g. `$env:SLOW="7"; $env:SHUTTER="0.5"; $env:SUBSAMPLES="3"`
+(renders it already has are reused), then compose again.
+
 ---
 
 ## Notes

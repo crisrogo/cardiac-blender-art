@@ -85,5 +85,7 @@ reaction-eikonal activation-time maps (`activation_maps/<id>.dat`, one value in
 ms per node of the `videos_HCM` mesh, `-1` where the tissue is not excitable) and
 their inputs (`inputs/json_files/<id>.json`, `default.json`, `tags_EP.json`).
 There is no fixed location; the unpacked folder is passed to
-`beat_video/prepare_ep.py`. The geometry these values sit on is the unpublished
+`beat_video/prepare_ep.py`. The activation times of the mechanics runs themselves
+(`HCMn_cycle_<N>_vm_act_seq.dat`, used for EP + contraction) are **not** in this
+record. The geometry these values sit on is the unpublished
 time series above.

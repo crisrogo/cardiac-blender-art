@@ -4,6 +4,10 @@ EP video, stage 3: assemble the rendered beat into the final video.
     python compose_ep_video.py <look_dir> <black|white> <out.mp4> [--beats 3] [--label "HCM patient 1"]
     python compose_ep_video.py <look_dir> <black|white> <out.png> --still <t_ms>
     python compose_ep_video.py <look_dir> white <out.mp4> --plain [--slow 5 --cl 800 --beats 3]
+    python compose_ep_video.py <look_dir> white <out.mp4> --mech [--beats 6]
+
+--mech encodes what `render_ep_video.py mech` planned (meta_mech.json +
+raw_mech/): EP and contraction together, timing fixed at render time.
 
 --plain is the heart alone (no text) at its real cycle length, `--slow` times slower
 than real time, each video frame motion-blurred from the 1-ms renders it covers.
@@ -185,6 +189,35 @@ class PlainComposer:
         return img
 
 
+class MechComposer:
+    """Heart only, following the timeline `render_ep_video.py mech` planned: each
+    video frame is the average of the renders listed for it (motion blur)."""
+    def __init__(self, look_dir, bg):
+        self.dir = look_dir
+        self.meta = json.load(open(os.path.join(look_dir, "meta_mech.json")))
+        self.bg = np.array((0, 0, 0) if bg == "black" else (255, 255, 255), np.float32)
+        self.cache = {}
+
+    def raw(self, key):
+        if key not in self.cache:
+            if len(self.cache) > 12:
+                self.cache.pop(next(iter(self.cache)))
+            im = np.asarray(Image.open(os.path.join(self.dir, "raw_mech", f"t_{key:05d}.png")).convert("RGBA"),
+                            np.float32)
+            a = im[..., 3:] / 255.0
+            self.cache[key] = im[..., :3] * a + self.bg * (1 - a)
+        return self.cache[key]
+
+    def frame(self, keys):
+        acc = sum(self.raw(k) for k in keys) / len(keys)
+        heart = Image.fromarray(np.clip(acc + 0.5, 0, 255).astype(np.uint8), "RGB")
+        if heart.size != (H, H):
+            heart = heart.resize((H, H), Image.LANCZOS)
+        img = Image.new("RGB", (W, H), tuple(int(x) for x in self.bg))
+        img.paste(heart, ((W - H) // 2, 0))
+        return img
+
+
 def encode(frames, n, out):
     cmd = ["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}",
            "-r", str(FPS), "-i", "-", "-c:v", "libx264", "-crf", "18", "-preset", "medium",
@@ -199,7 +232,7 @@ def encode(frames, n, out):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("look_dir"); ap.add_argument("bg", choices=["black", "white"]); ap.add_argument("out")
-    ap.add_argument("--beats", type=int, default=3)
+    ap.add_argument("--beats", type=int, default=None, help="default 6 for --mech, else 3")
     ap.add_argument("--label", default="")
     ap.add_argument("--still", type=float, default=None)
     ap.add_argument("--plain", action="store_true", help="heart only, real cycle length, see --slow/--cl")
@@ -207,7 +240,15 @@ def main():
     ap.add_argument("--cl", type=float, default=800.0, help="--plain: cycle length (ms)")
     ap.add_argument("--shutter", type=float, default=0.5, help="--plain: fraction of a frame blurred")
     ap.add_argument("--lead", type=float, default=150.0, help="--plain: rest (ms) before each activation")
+    ap.add_argument("--mech", action="store_true", help="EP + contraction, as planned by `render_ep_video.py mech`")
     a = ap.parse_args()
+    if a.beats is None:
+        a.beats = 6 if a.mech else 3
+    if a.mech:
+        c = MechComposer(a.look_dir, a.bg)
+        tl = c.meta["timeline"] * a.beats
+        encode((c.frame(keys) for keys in tl), len(tl), a.out)
+        return
     if a.plain:
         c = PlainComposer(a.look_dir, a.bg, a.slow, a.cl, a.shutter, a.lead)
         n = int(round(a.beats * a.cl / c.dt))

@@ -23,10 +23,23 @@ put the same render on black and on white and add the clock / colour bar.
 
     blender --background --factory-startup --python render_ep_video.py -- still <t_ms> [<t_ms> ...]
     blender --background --factory-startup --python render_ep_video.py -- beat
+    MECH=1 SAMPLE=cycle532 STYLE=wave blender ... --python render_ep_video.py -- mech
+
+`mech` shows EP AND contraction: the heart moves through every mechanics frame
+(frame_NNN_full.npz, DT_FRAME ms apart, one cycle = n_frames * DT_FRAME) and the
+activation times are those that drove that run, with the AV delay already in
+them. The wave is evaluated modulo the cycle, so the atrial wave at the end of
+one loop runs straight into the ventricles of the next. It plans a video
+timeline at SLOW x slow motion in which the quiet diastasis (ventricles
+relaxed -> atrial activation) plays in QUIET_S seconds, renders every distinct
+time the timeline needs to raw_mech/t_NNNNN.png (0.1 ms keys) and writes it to
+meta_mech.json for `compose_ep_video.py --mech`.
 
 Env:
     BEAT_DIR   case dir with topo.npz, frame_000_full.npz, ep_<SAMPLE>.npz
-    SAMPLE     EP sample id                      (default 74)
+    SAMPLE     name of ep_<SAMPLE>.npz           (default 74)
+    MECH       1 -> load every mechanics frame (needed by `mech`)
+    DT_FRAME SLOW QUIET_S SHUTTER SUBSAMPLES LEAD_MS  mech timing (10 ms, 2x, 0.25 s, 1 frame, 9, 40 ms)
     OUT_DIR    output root                       (default <BEAT_DIR>/ep_<SAMPLE>)
     STYLE      map | wave                        (default map)
     FINISH     matte | glow | tissue             (default matte)
@@ -50,11 +63,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 # absolute: Blender resolves a relative render filepath against the drive root, not the cwd
 BEAT_DIR = os.path.abspath(os.environ.get("BEAT_DIR") or os.path.join(ROOT, "output", "beat_video", "case1"))
-SAMPLE = int(os.environ.get("SAMPLE", "74"))
+SAMPLE = os.environ.get("SAMPLE", "74")
+MECH = os.environ.get("MECH", "0") == "1" or MODE == "mech"
 OUT_DIR = os.path.abspath(os.environ.get("OUT_DIR") or os.path.join(BEAT_DIR, f"ep_{SAMPLE}"))
 STYLE = os.environ.get("STYLE", "map").lower()
 FINISH = os.environ.get("FINISH", "matte").lower()
-AV_DELAY = float(os.environ.get("AV_DELAY", "100"))
+AV_DELAY = float(os.environ.get("AV_DELAY", "0" if MECH else "100"))   # mech ATs already hold it
 MS_PER_FRAME = float(os.environ.get("MS_PER_FRAME", "1.0"))
 ISO_MS = float(os.environ.get("ISO_MS", "10"))
 TEST = os.environ.get("TEST", "0") == "1"
@@ -84,9 +98,19 @@ _o = orientmod.compute_orientation(P0, FACES, FACE_TAGS, VALVE_TAGS, LV_ENDO_TAG
 R, gc = _o["R"], _o["gc"]
 scale = 2.0 / float((P0 @ R.T)[:, 2].ptp())
 VERTS = ((P0 - gc) @ R.T) * scale
-bmin, bmax = VERTS.min(0), VERTS.max(0)
+FRAMES = [VERTS.astype(np.float32)]
+DT_FRAME = float(os.environ.get("DT_FRAME", "10"))
+if MECH:
+    _ff = sorted(f for f in os.listdir(BEAT_DIR) if f.startswith("frame_") and f.endswith("_full.npz"))
+    FRAMES = [(((np.load(os.path.join(BEAT_DIR, f))["points"].astype(np.float64)[topo["surf_vidx"]] - gc) @ R.T)
+               * scale).astype(np.float32) for f in _ff]
+CYCLE_MS = len(FRAMES) * DT_FRAME if MECH else 0.0
+_allv = np.concatenate(FRAMES[::4], 0)                   # frame the whole motion, not just ED
+bmin, bmax = _allv.min(0), _allv.max(0)
 CENTER = Vector(tuple((bmin + bmax) / 2))
-RADIUS = float(np.linalg.norm(VERTS - (bmin + bmax) / 2, axis=1).max())
+RADIUS = float(np.linalg.norm(_allv - (bmin + bmax) / 2, axis=1).max())
+if MECH:
+    print(f"[ep] mech: {len(FRAMES)} frames x {DT_FRAME} ms -> cycle {CYCLE_MS:.0f} ms")
 
 
 def surface_gradient_norm():
@@ -216,6 +240,8 @@ def make_ep_material(name, offset, a0, a1):
                                     attribute_name="grad").outputs["Fac"], 1.0)
 
     since = g.math("SUBTRACT", T, g.math("ADD", at, offset))            # ms since this point activated
+    if CYCLE_MS > 0:                                                    # periodic beat: time within the cycle
+        since = g.math("FLOORED_MODULO", since, CYCLE_MS)
     active = g.smooth(since, -0.6, 0.6)                                 # 0 before, 1 after (soft 1 ms edge)
     u = g.math("DIVIDE", g.math("SUBTRACT", at, a0), max(1e-3, a1 - a0), clamp=True)
     rest = TISSUE if FINISH == "tissue" else REST_GREY
@@ -307,6 +333,14 @@ def build_heart():
 HEART = build_heart()
 
 
+def set_frame(t_ms):
+    """Mechanics geometry at cycle time t (linear between frames, wrapping)."""
+    f = (t_ms % CYCLE_MS) / DT_FRAME
+    i = int(f) % len(FRAMES); j = (i + 1) % len(FRAMES); a = f - int(f)
+    v = FRAMES[i] * (1 - a) + FRAMES[j] * a
+    HEART.data.vertices.foreach_set("co", v.ravel()); HEART.data.update()
+
+
 def set_time(t_ms, k=1.0):
     for T, K in CTRL:
         T.outputs[0].default_value = t_ms
@@ -366,6 +400,8 @@ meta = dict(case=os.path.basename(os.path.normpath(BEAT_DIR)), sample=SAMPLE, st
 if MODE == "still":
     for t in (REST or ["60"]):
         set_time(float(t))
+        if MECH:
+            set_frame(float(t))
         render_to(os.path.join(OUT_DIR, "stills", f"{TAG}_el{int(CAM_ELEV):02d}_t{int(float(t)):03d}.png"))
 elif MODE == "beat":
     # only the frames that change: t = -MS_PER_FRAME (rest) .. END_MS + a few ms for the
@@ -391,6 +427,59 @@ elif MODE == "beat":
     meta["n_frames"] = n
     json.dump(meta, open(os.path.join(OUT_DIR, TAG, "meta.json"), "w"), indent=1)
     print(f"[ep] beat {TAG}: {n} frames -> {out}")
+elif MODE == "mech":
+    SLOW = float(os.environ.get("SLOW", "2"))
+    QUIET_S = float(os.environ.get("QUIET_S", "0.25"))
+    SHUTTER = float(os.environ.get("SHUTTER", "1.0"))
+    LEAD = float(os.environ.get("LEAD_MS", "40"))
+    NSUB = int(os.environ.get("SUBSAMPLES", "9"))        # renders averaged per frame while a wave is visible
+    TAIL = 60.0 if STYLE == "wave" else 6.0
+    FPS = 30
+    # ventricles relaxed = first frame after peak contraction where the median
+    # ventricular surface-area change per frame drops below 0.12 %
+    vf = FACES[REGION == 2]
+    def _area(v):
+        p = v[vf]; return 0.5 * np.linalg.norm(np.cross(p[:, 1] - p[:, 0], p[:, 2] - p[:, 0]), axis=1)
+    a0 = _area(FRAMES[0])
+    med = np.array([np.median(_area(v) / a0) for v in FRAMES])
+    pk = int(med.argmin())
+    t_wake = AT_RANGE[0, 0] - LEAD                       # a little before the atria fire
+    plateau = med[int(t_wake // DT_FRAME)]
+    rel = next((k for k in range(pk + 1, len(FRAMES) - 1)
+                if med[k] >= med[pk] + 0.9 * (plateau - med[pk]) and med[k + 1] - med[k] < 0.0012), pk)
+    t_relax = rel * DT_FRAME
+    quiet = max(0.0, t_wake - t_relax)
+    dtv = 1000.0 / (FPS * SLOW)
+    # the loop starts just before atrial activation and ends in the compressed diastasis
+    n_act = int(round((CYCLE_MS - quiet) / dtv))
+    times = [(t_wake + k * dtv) % CYCLE_MS for k in range(n_act)]
+    n_q = max(1, int(round(QUIET_S * FPS))) if quiet > 0 else 0
+    times += [t_relax + quiet * (k + 0.5) / n_q for k in range(n_q)]
+
+    def electrically_live(t):
+        return any(((t - lo) % CYCLE_MS) <= (hi - lo) + TAIL for lo, hi in AT_RANGE)
+
+    timeline = []
+    for k, t in enumerate(times):
+        if k < n_act and electrically_live(t):         # motion blur while a wave is visible
+            sub = [t - SHUTTER * dtv * j / max(1, NSUB - 1) for j in range(NSUB)]
+        else:
+            sub = [t]
+        timeline.append([int(round((x % CYCLE_MS) * 10)) for x in sub])
+    keys = sorted({x for fr in timeline for x in fr})
+    out = os.path.join(OUT_DIR, TAG, "raw_mech")
+    os.makedirs(out, exist_ok=True)
+    print(f"[ep] mech: relaxed at {t_relax:.0f} ms, atria at {AT_RANGE[0, 0]:.0f} ms -> {quiet:.0f} ms of "
+          f"diastasis in {n_q} frames; {len(timeline)} video frames/beat, {len(keys)} renders")
+    for key in keys:
+        p = os.path.join(out, f"t_{key:05d}.png")
+        if os.path.exists(p):
+            continue
+        set_frame(key / 10.0); set_time(key / 10.0)
+        render_to(p)
+    meta.update(cycle_ms=CYCLE_MS, dt_frame=DT_FRAME, slow=SLOW, quiet_ms=quiet, t_relax=t_relax,
+                timeline=timeline, fps=FPS)
+    json.dump(meta, open(os.path.join(OUT_DIR, TAG, "meta_mech.json"), "w"))
 else:
     raise SystemExit(f"unknown mode {MODE}")
 json.dump(meta, open(os.path.join(OUT_DIR, f"meta_{TAG}.json"), "w"), indent=1)

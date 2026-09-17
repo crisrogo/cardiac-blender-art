@@ -17,7 +17,8 @@ for three projects:
 4. **The electrical activation video** — the end-diastolic heart with the
    reaction-eikonal activation wave spreading over it (atria, then the
    ventricles after the AV delay), as a travelling front or a CARTO-style
-   activation map.
+   activation map, either on the static end-diastolic heart or together with its
+   contraction.
 
 > **Meshes are on Zenodo; low-res examples are in this repo.**
 > The meshes behind projects 1 and 2 are archived on Zenodo — see
@@ -111,7 +112,25 @@ see [Delivery encodes](beat_video/README.md#delivery-encodes).)*
 
 ### Electrical activation video
 
-The wave on HCM1 and HCM3 (5× slow, real 800 ms cycle), and the annotated CARTO map:
+Activation **and contraction** on the beating heart, HCM1 and HCM3 (2× slow, the
+pause between beats shortened):
+
+<table>
+  <tr>
+    <td width="50%">
+      <video src="https://github.com/crisrogo/cardiac-blender-art/raw/main/examples/ep-video/ep-mech-hcm1.mp4" controls loop muted width="100%"></video>
+    </td>
+    <td width="50%">
+      <video src="https://github.com/crisrogo/cardiac-blender-art/raw/main/examples/ep-video/ep-mech-hcm3.mp4" controls loop muted width="100%"></video>
+    </td>
+  </tr>
+  <tr>
+    <td align="center"><a href="examples/ep-video/ep-mech-hcm1.mp4">HCM1, cycle 532</a> (<a href="examples/ep-video/ep-mech-hcm1-slow7.mp4">7× slow</a>)</td>
+    <td align="center"><a href="examples/ep-video/ep-mech-hcm3.mp4">HCM3, cycle 237</a></td>
+  </tr>
+</table>
+
+The wave alone on the static end-diastolic heart (5× slow, real 800 ms cycle), and the annotated CARTO map:
 
 <table>
   <tr>
