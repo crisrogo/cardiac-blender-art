@@ -287,6 +287,32 @@ reuses any time already rendered. Each case is ~200 renders at 2× (~5 min at 10
 ~320 at `SLOW=7 SHUTTER=0.5 SUBSAMPLES=3`. The camera frames the whole motion rather
 than end-diastole, so the heart sits slightly smaller than in the static video.
 
+### Artificial arrhythmia (`arrhythmia`)
+
+A deliberately chaotic, **non-physiological** take on `mech`, made for the look
+rather than the physics. The contraction and the electrical wave run on
+independent random schedules, so they no longer pair up:
+
+- **contractions** (`BEATS`, default 10) each play at a random rate from 1× to 2.5×
+  the `mech` speed (`MECH_RATE`), never slower. A wobble inside each beat only ever
+  speeds it up (`WOBBLE`, 0.4). Each is followed by a random diastasis of 0.1 s up
+  to `QUIET_S` (`GAP_S`), never longer than in `mech`;
+- **waves** (atria then ventricles, as in the data) fire on their own schedule, each
+  at 1–2× the `mech` speed (`EP_RATE`) after a random 0–0.5 s pause (`EP_GAP_S`),
+  so some contractions have no wave and some waves cross a relaxed heart.
+
+```bash
+SAMPLE=cycle532 STYLE=wave FINISH=matte SEED=7 blender --background --factory-startup --python render_ep_video.py -- arrhythmia
+python compose_ep_video.py <case1>/ep_cycle532/wave_matte white ep_arrhythmia.mp4 --arrhythmia
+```
+
+The whole loop is planned at once (HCM1, seed 7: 10 contractions and 14 waves in
+10.8 s) and closes on a relaxed heart with no wave running. `SEED` gives a different
+draw. The ranges are `lo,hi` pairs. Every frame pairs its own wave time with its
+own contraction time (`raw_arrhythmia/e<EP>_m<mech>.png`), so nothing repeats
+across beats: ~1000 renders, ~20 min per case at 1080². Motion blur uses 5 renders
+over half a frame while a wave shows (`SUBSAMPLES`, `SHUTTER`).
+
 ## Other scripts
 
 - `render_streamlines.py` — standalone fibre-tract stills (glowing tubes over a

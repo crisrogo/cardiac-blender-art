@@ -315,7 +315,7 @@ drove that mechanics run, `HCMn_cycle_<N>_vm_act_seq.dat`. `<N>` is the number i
 the VTU names, e.g. `HCM1_532_*.vtu` -> cycle 532.
 ```powershell
 python beat_video/prepare_ep.py HCM1_cycle_532_vm_act_seq.dat output/beat_video/case1 cycle532
-$env:BEAT_DIR="outputeat_video\case1"; $env:SAMPLE="cycle532"; $env:STYLE="wave"; $env:FINISH="matte"
+$env:BEAT_DIR="output\beat_video\case1"; $env:SAMPLE="cycle532"; $env:STYLE="wave"; $env:FINISH="matte"
 & $blender --background --factory-startup --python beat_video/render_ep_video.py -- mech
 python beat_video/compose_ep_video.py output/beat_video/case1/ep_cycle532/wave_matte white ep_mech_case1.mp4 --mech
 ```
@@ -323,6 +323,17 @@ python beat_video/compose_ep_video.py output/beat_video/case1/ep_cycle532/wave_m
 The speed is fixed when the `mech` render plans the timeline. For another speed,
 re-run the render with e.g. `$env:SLOW="7"; $env:SHUTTER="0.5"; $env:SUBSAMPLES="3"`
 (renders it already has are reused), then compose again.
+
+### D7. (optional) The artificial arrhythmia
+Same inputs as D6, with the contraction and the waves on independent random
+schedules. This is for the look only; the timing is not simulated.
+```powershell
+$env:SEED="7"      # another seed gives another random loop
+& $blender --background --factory-startup --python beat_video/render_ep_video.py -- arrhythmia
+python beat_video/compose_ep_video.py output/beat_video/case1/ep_cycle532/wave_matte white ep_arrhythmia_case1.mp4 --arrhythmia
+```
+→ one 10–11 s loop of 10 contractions. The ranges (`MECH_RATE`, `GAP_S`, `EP_RATE`,
+`EP_GAP_S`, `WOBBLE`) are listed in `beat_video/README.md`.
 
 ---
 

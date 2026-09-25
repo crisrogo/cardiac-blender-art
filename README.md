@@ -18,7 +18,7 @@ for three projects:
    reaction-eikonal activation wave spreading over it (atria, then the
    ventricles after the AV delay), as a travelling front or a CARTO-style
    activation map, either on the static end-diastolic heart or together with its
-   contraction.
+   contraction, plus an artificially arrhythmic version.
 
 > **Meshes are on Zenodo; low-res examples are in this repo.**
 > The meshes behind projects 1 and 2 are archived on Zenodo — see
@@ -127,6 +127,24 @@ pause between beats shortened):
   <tr>
     <td align="center"><a href="examples/ep-video/ep-mech-hcm1.mp4">HCM1, cycle 532</a> (<a href="examples/ep-video/ep-mech-hcm1-slow7.mp4">7× slow</a>)</td>
     <td align="center"><a href="examples/ep-video/ep-mech-hcm3.mp4">HCM3, cycle 237</a></td>
+  </tr>
+</table>
+
+An **artificial arrhythmia**, randomised for the look rather than simulated: fast
+contractions and fast electrical waves on independent schedules:
+
+<table>
+  <tr>
+    <td width="50%">
+      <video src="https://github.com/crisrogo/cardiac-blender-art/raw/main/examples/ep-video/ep-arrhythmia-hcm1.mp4" controls loop muted width="100%"></video>
+    </td>
+    <td width="50%">
+      <video src="https://github.com/crisrogo/cardiac-blender-art/raw/main/examples/ep-video/ep-arrhythmia-hcm3.mp4" controls loop muted width="100%"></video>
+    </td>
+  </tr>
+  <tr>
+    <td align="center"><a href="examples/ep-video/ep-arrhythmia-hcm1.mp4">HCM1, cycle 532</a></td>
+    <td align="center"><a href="examples/ep-video/ep-arrhythmia-hcm3.mp4">HCM3, cycle 237</a></td>
   </tr>
 </table>
 

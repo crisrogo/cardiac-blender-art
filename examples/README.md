@@ -111,10 +111,13 @@ own. Full pipeline:
 | [`ep-video/ep-mech-hcm1.mp4`](ep-video/ep-mech-hcm1.mp4) | HCM1 cycle 532, EP **and contraction**, 2× slow, diastasis compressed, 6 beats | `python beat_video/prepare_ep.py HCM1_cycle_532_vm_act_seq.dat <case1> cycle532`, then `SAMPLE=cycle532 STYLE=wave FINISH=matte blender ... --python beat_video/render_ep_video.py -- mech`, then `python beat_video/compose_ep_video.py <case1>/ep_cycle532/wave_matte white out.mp4 --mech` |
 | [`ep-video/ep-mech-hcm3.mp4`](ep-video/ep-mech-hcm3.mp4) | HCM3 cycle 237, same settings | as above with `HCM3_cycle_237_vm_act_seq.dat`, `<case3>`, `SAMPLE=cycle237` |
 | [`ep-video/ep-mech-hcm1-slow7.mp4`](ep-video/ep-mech-hcm1-slow7.mp4) | HCM1 cycle 532 at 7× slow, 3 beats | `SLOW=7 SHUTTER=0.5 SUBSAMPLES=3` on the `mech` render, `--beats 3` |
+| [`ep-video/ep-arrhythmia-hcm1.mp4`](ep-video/ep-arrhythmia-hcm1.mp4) | HCM1 cycle 532, **artificial arrhythmia**: fast contractions and fast waves on independent random schedules, 10.8 s loop (seed 7) | `SAMPLE=cycle532 STYLE=wave FINISH=matte blender ... --python beat_video/render_ep_video.py -- arrhythmia`, then `python beat_video/compose_ep_video.py <case1>/ep_cycle532/wave_matte white out.mp4 --arrhythmia` |
+| [`ep-video/ep-arrhythmia-hcm3.mp4`](ep-video/ep-arrhythmia-hcm3.mp4) | HCM3 cycle 237, same settings | as above with `<case3>`, `SAMPLE=cycle237` |
 | [`ep-video/looks.png`](ep-video/looks.png) | every `STYLE` × `FINISH` at t = 160 ms, on black and on white | `STYLE=<s> FINISH=<f> blender ... -- still 160` for each combination |
 
-The `ep-mech-*` videos use the `vm_act_seq.dat` activation times that drove each
-mechanics run (not on Zenodo). The wave and mech previews are 540² crops of the
+The `ep-mech-*` and `ep-arrhythmia-*` videos use the `vm_act_seq.dat` activation
+times that drove each mechanics run (not on Zenodo). The arrhythmia is artificial:
+its timing is randomised for the look, not simulated. The wave and mech previews are 540² crops of the
 1920×1080 videos; the map preview is
 960×540 and was cut from a 720² `TEST=1` render. All of them are rendered with
 a transparent background, so the same frames give the black-background versions

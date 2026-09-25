@@ -5,6 +5,7 @@ EP video, stage 3: assemble the rendered beat into the final video.
     python compose_ep_video.py <look_dir> <black|white> <out.png> --still <t_ms>
     python compose_ep_video.py <look_dir> white <out.mp4> --plain [--slow 5 --cl 800 --beats 3]
     python compose_ep_video.py <look_dir> white <out.mp4> --mech [--beats 6]
+    python compose_ep_video.py <look_dir> white <out.mp4> --arrhythmia [--beats 1]
 
 --mech encodes what `render_ep_video.py mech` planned (meta_mech.json +
 raw_mech/): EP and contraction together, timing fixed at render time.
@@ -192,9 +193,9 @@ class PlainComposer:
 class MechComposer:
     """Heart only, following the timeline `render_ep_video.py mech` planned: each
     video frame is the average of the renders listed for it (motion blur)."""
-    def __init__(self, look_dir, bg):
-        self.dir = look_dir
-        self.meta = json.load(open(os.path.join(look_dir, "meta_mech.json")))
+    def __init__(self, look_dir, bg, kind="mech"):
+        self.dir, self.kind = look_dir, kind
+        self.meta = json.load(open(os.path.join(look_dir, f"meta_{kind}.json")))
         self.bg = np.array((0, 0, 0) if bg == "black" else (255, 255, 255), np.float32)
         self.cache = {}
 
@@ -202,7 +203,8 @@ class MechComposer:
         if key not in self.cache:
             if len(self.cache) > 12:
                 self.cache.pop(next(iter(self.cache)))
-            im = np.asarray(Image.open(os.path.join(self.dir, "raw_mech", f"t_{key:05d}.png")).convert("RGBA"),
+            name = key if isinstance(key, str) else f"t_{key:05d}"     # arrhythmia keys are names
+            im = np.asarray(Image.open(os.path.join(self.dir, f"raw_{self.kind}", name + ".png")).convert("RGBA"),
                             np.float32)
             a = im[..., 3:] / 255.0
             self.cache[key] = im[..., :3] * a + self.bg * (1 - a)
@@ -241,11 +243,13 @@ def main():
     ap.add_argument("--shutter", type=float, default=0.5, help="--plain: fraction of a frame blurred")
     ap.add_argument("--lead", type=float, default=150.0, help="--plain: rest (ms) before each activation")
     ap.add_argument("--mech", action="store_true", help="EP + contraction, as planned by `render_ep_video.py mech`")
+    ap.add_argument("--arrhythmia", action="store_true",
+                    help="the randomised loop planned by `render_ep_video.py arrhythmia` (already N beats)")
     a = ap.parse_args()
     if a.beats is None:
-        a.beats = 6 if a.mech else 3
-    if a.mech:
-        c = MechComposer(a.look_dir, a.bg)
+        a.beats = 1 if a.arrhythmia else 6 if a.mech else 3
+    if a.mech or a.arrhythmia:
+        c = MechComposer(a.look_dir, a.bg, "arrhythmia" if a.arrhythmia else "mech")
         tl = c.meta["timeline"] * a.beats
         encode((c.frame(keys) for keys in tl), len(tl), a.out)
         return

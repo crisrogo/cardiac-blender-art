@@ -35,6 +35,15 @@ relaxed -> atrial activation) plays in QUIET_S seconds, renders every distinct
 time the timeline needs to raw_mech/t_NNNNN.png (0.1 ms keys) and writes it to
 meta_mech.json for `compose_ep_video.py --mech`.
 
+`arrhythmia` is an artificial, deliberately chaotic take on `mech`: the
+contraction and the electrical wave run on independent random schedules (SEED).
+Each contraction plays at a random rate, never slower than `mech`, and a wobble
+inside the beat only ever speeds it up (MECH_RATE, WOBBLE). Each diastasis is no
+longer than `mech`'s (GAP_S). The waves fire on their own schedule, at their own
+fast speed and with their own random pauses (EP_RATE, EP_GAP_S), so they do not
+pair up with the contractions. BEATS contractions are planned as one loop -> raw_arrhythmia/e<EP>_m<mech>.png +
+meta_arrhythmia.json for `compose_ep_video.py --arrhythmia`. Not physiological.
+
 Env:
     BEAT_DIR   case dir with topo.npz, frame_000_full.npz, ep_<SAMPLE>.npz
     SAMPLE     name of ep_<SAMPLE>.npz           (default 74)
@@ -64,7 +73,7 @@ ROOT = os.path.dirname(HERE)
 # absolute: Blender resolves a relative render filepath against the drive root, not the cwd
 BEAT_DIR = os.path.abspath(os.environ.get("BEAT_DIR") or os.path.join(ROOT, "output", "beat_video", "case1"))
 SAMPLE = os.environ.get("SAMPLE", "74")
-MECH = os.environ.get("MECH", "0") == "1" or MODE == "mech"
+MECH = os.environ.get("MECH", "0") == "1" or MODE in ("mech", "arrhythmia")
 OUT_DIR = os.path.abspath(os.environ.get("OUT_DIR") or os.path.join(BEAT_DIR, f"ep_{SAMPLE}"))
 STYLE = os.environ.get("STYLE", "map").lower()
 FINISH = os.environ.get("FINISH", "matte").lower()
@@ -427,12 +436,14 @@ elif MODE == "beat":
     meta["n_frames"] = n
     json.dump(meta, open(os.path.join(OUT_DIR, TAG, "meta.json"), "w"), indent=1)
     print(f"[ep] beat {TAG}: {n} frames -> {out}")
-elif MODE == "mech":
+elif MODE in ("mech", "arrhythmia"):
     SLOW = float(os.environ.get("SLOW", "2"))
     QUIET_S = float(os.environ.get("QUIET_S", "0.25"))
     SHUTTER = float(os.environ.get("SHUTTER", "1.0"))
     LEAD = float(os.environ.get("LEAD_MS", "40"))
-    NSUB = int(os.environ.get("SUBSAMPLES", "9"))        # renders averaged per frame while a wave is visible
+    NSUB = int(os.environ.get("SUBSAMPLES", "9" if MODE == "mech" else "5"))   # averaged per frame while a wave shows
+    if MODE == "arrhythmia" and "SHUTTER" not in os.environ:
+        SHUTTER = 0.5                                    # its waves are fast: a full-frame blur smears them
     TAIL = 60.0 if STYLE == "wave" else 6.0
     FPS = 30
     # ventricles relaxed = first frame after peak contraction where the median
@@ -450,14 +461,81 @@ elif MODE == "mech":
     t_relax = rel * DT_FRAME
     quiet = max(0.0, t_wake - t_relax)
     dtv = 1000.0 / (FPS * SLOW)
+
+    def electrically_live(t):
+        return any(((t - lo) % CYCLE_MS) <= (hi - lo) + TAIL for lo, hi in AT_RANGE)
+
+if MODE == "arrhythmia":
+    SEED = int(os.environ.get("SEED", "7"))
+    rng = np.random.default_rng(SEED)
+    NB = int(os.environ.get("BEATS", "10"))
+
+    def span(name, default):
+        lo, hi = (float(x) for x in os.environ.get(name, default).split(","))
+        return lo, hi
+
+    MR, ER = span("MECH_RATE", "1.0,2.5"), span("EP_RATE", "1.0,2.0")    # x the `mech` speed
+    GAP, EGAP = span("GAP_S", f"0.1,{QUIET_S}"), span("EP_GAP_S", "0,0.5")
+    WOB = float(os.environ.get("WOBBLE", "0.4"))
+    act_len = CYCLE_MS - quiet                           # t_wake -> relaxed, in sim ms
+    # mechanics clock: each beat at its own rate, wobbling only faster, then a random diastasis
+    tm, mrate, starts, plan = [], [], [], []
+    for b in range(NB):
+        r = rng.uniform(*MR); ph = rng.uniform(0, 2 * np.pi); per = rng.uniform(0.4, 1.1) * FPS
+        starts.append(len(tm)); x, k = 0.0, 0
+        while x < act_len:
+            step = dtv * r * (1 + WOB * (0.5 + 0.5 * math.sin(2 * math.pi * k / per + ph)))
+            tm.append((t_wake + x) % CYCLE_MS); mrate.append(step); x += step; k += 1
+        ng = max(3, int(round(rng.uniform(*GAP) * FPS)))  # never 0: the motion must not jump
+        tm += [t_relax + quiet * (j + 0.5) / ng for j in range(ng)]; mrate += [quiet / ng] * ng
+        plan.append(dict(mech_rate=round(r, 2), gap_frames=ng))
+    N = len(tm)
+    # EP clock, independent of the contractions: at rest (t_relax: nothing fires)
+    # except while a wave runs; waves follow each other after random pauses and
+    # stop where the next one would not finish inside the loop
+    ep_len = (CYCLE_MS - t_wake) + AT_RANGE[1, 1] + TAIL
+    te, erate, waves = [t_relax] * N, [0.0] * N, []
+    e0 = int(round(rng.uniform(*EGAP) * FPS))
+    while True:
+        r = rng.uniform(*ER)
+        n = int(math.ceil(ep_len / (dtv * r)))
+        if e0 + n > N:
+            break
+        for j in range(n):
+            te[e0 + j] = (t_wake + j * dtv * r) % CYCLE_MS; erate[e0 + j] = dtv * r
+        waves.append(dict(start=e0, frames=n, ep_rate=round(r, 2)))
+        e0 += n + int(round(rng.uniform(*EGAP) * FPS))
+
+    timeline, jobs = [], {}
+    for k in range(N):
+        live = erate[k] > 0 and electrically_live(te[k])
+        fr = []
+        for j in (range(NSUB) if live else range(1)):
+            a = SHUTTER * j / max(1, NSUB - 1)
+            e = (te[k] - a * erate[k]) % CYCLE_MS; m = (tm[k] - a * mrate[k]) % CYCLE_MS
+            name = f"e{int(round(e * 10)):05d}_m{int(round(m * 10)):05d}"
+            jobs[name] = (e, m); fr.append(name)
+        timeline.append(fr)
+    out = os.path.join(OUT_DIR, TAG, "raw_arrhythmia")
+    os.makedirs(out, exist_ok=True)
+    print(f"[ep] arrhythmia seed {SEED}: {NB} contractions, {len(waves)} waves, {N} video frames "
+          f"({N / FPS:.1f} s), {len(jobs)} renders", flush=True)
+    print("    contractions:", plan, "\n    waves:", waves, flush=True)
+    for name, (e, m) in sorted(jobs.items()):
+        p = os.path.join(out, name + ".png")
+        if os.path.exists(p):
+            continue
+        set_frame(m); set_time(e)
+        render_to(p)
+    meta.update(cycle_ms=CYCLE_MS, dt_frame=DT_FRAME, slow=SLOW, seed=SEED, beats=plan, waves=waves,
+                timeline=timeline, fps=FPS)
+    json.dump(meta, open(os.path.join(OUT_DIR, TAG, "meta_arrhythmia.json"), "w"))
+elif MODE == "mech":
     # the loop starts just before atrial activation and ends in the compressed diastasis
     n_act = int(round((CYCLE_MS - quiet) / dtv))
     times = [(t_wake + k * dtv) % CYCLE_MS for k in range(n_act)]
     n_q = max(1, int(round(QUIET_S * FPS))) if quiet > 0 else 0
     times += [t_relax + quiet * (k + 0.5) / n_q for k in range(n_q)]
-
-    def electrically_live(t):
-        return any(((t - lo) % CYCLE_MS) <= (hi - lo) + TAIL for lo, hi in AT_RANGE)
 
     timeline = []
     for k, t in enumerate(times):
