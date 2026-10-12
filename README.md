@@ -19,6 +19,10 @@ for three projects:
    ventricles after the AV delay), as a travelling front or a CARTO-style
    activation map, either on the static end-diastolic heart or together with its
    contraction, plus an artificially arrhythmic version.
+5. **The realistic look** — the beating heart as a wet fresh specimen lying on a
+   dark studio table (one tissue colour for the whole myocardium, the muscle
+   striations following the simulation's own myofibre field), and the
+   activation wave running over that same tissue.
 
 > **Meshes are on Zenodo; low-res examples are in this repo.**
 > The meshes behind projects 1 and 2 are archived on Zenodo — see
@@ -170,7 +174,30 @@ The wave alone on the static end-diastolic heart (5× slow, real 800 ms cycle), 
 [`examples/ep-video/ep-map-overlays-hcm1.mp4`](examples/ep-video/ep-map-overlays-hcm1.mp4) ·
 every look side by side: [`examples/ep-video/looks.png`](examples/ep-video/looks.png)
 
-<img src="examples/ep-video/looks.png" width="100%" alt="The two EP styles (wave, map) in three finishes, on black and on white">
+<img src="examples/ep-video/looks.png" width="100%" alt="The two EP styles (wave, map) in four finishes, on black and on white">
+
+### Realistic look
+
+The beating heart as a wet specimen lying on its posterior wall, seen from above
+the base (real time, one beat looped), and the EP wave + contraction over the same
+tissue (2× slow). HCM1, cycle 532. Only shading is added: the surface, its motion
+and the striation directions (the case's `.lon` myofibres) all come from the
+simulation.
+
+<table>
+  <tr>
+    <td width="50%">
+      <video src="https://github.com/crisrogo/cardiac-blender-art/raw/main/examples/beat-video/realism-hcm1.mp4" controls loop muted width="100%"></video>
+    </td>
+    <td width="50%">
+      <video src="https://github.com/crisrogo/cardiac-blender-art/raw/main/examples/ep-video/ep-mech-realistic-hcm1.mp4" controls loop muted width="100%"></video>
+    </td>
+  </tr>
+  <tr>
+    <td align="center"><a href="examples/beat-video/realism-hcm1.mp4">beating specimen</a></td>
+    <td align="center"><a href="examples/ep-video/ep-mech-realistic-hcm1.mp4">EP wave + contraction</a></td>
+  </tr>
+</table>
 
 ---
 
@@ -252,6 +279,10 @@ blender --background --factory-startup --python beat_video/render_beat_video.py 
 python  beat_video/prepare_ep.py <unpacked HCM1_EP> output/beat_video/case1 74
 blender --background --factory-startup --python beat_video/render_ep_video.py -- beat
 python  beat_video/compose_ep_video.py output/beat_video/case1/ep_74/map_matte white ep.mp4
+
+# the realistic look: one beat of the specimen on the table, then the EP wave over it
+blender --background --factory-startup --python beat_video/render_realism.py -- beat
+SAMPLE=cycle532 STYLE=wave FINISH=realistic blender --background --factory-startup --python beat_video/render_ep_video.py -- mech
 
 # a cover render: five hearts on the finite-element mesh floor
 blender --background --factory-startup --python cover_render.py -- arc floor=femesh test

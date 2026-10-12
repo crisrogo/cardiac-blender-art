@@ -16,7 +16,11 @@ Looks (STYLE):
         bright leading edge.
   wave  optical-mapping-like travelling front: a hot band with a fading tail on
         neutral tissue.
-Finishes (FINISH): matte | glow | tissue.
+Finishes (FINISH): matte | glow | tissue | realistic.
+  realistic  "the realistic look" (realistic_look.py) instead of grey: wet specimen
+             tissue, with the myofibre sheen/striations when <case>/fibres.npz
+             exists, opaque great vessels, soft studio light; the wave glows over
+             it. Rendered in Cycles (SSS + clear coat), so ~10x slower than EEVEE.
 
 Frames are rendered with a transparent film (RGBA) so compose_ep_video.py can
 put the same render on black and on white and add the clock / colour bar.
@@ -51,11 +55,13 @@ Env:
     DT_FRAME SLOW QUIET_S SHUTTER SUBSAMPLES LEAD_MS  mech timing (10 ms, 2x, 0.25 s, 1 frame, 9, 40 ms)
     OUT_DIR    output root                       (default <BEAT_DIR>/ep_<SAMPLE>)
     STYLE      map | wave                        (default map)
-    FINISH     matte | glow | tissue             (default matte)
+    FINISH     matte | glow | tissue | realistic (default matte)
+    EP_GLOW LIGHT_SCALE   FINISH=realistic: wave emission strength, light level (default 1.6, 1.4)
     AV_DELAY   ms between atrial and ventricular onset (default 100)
     MS_PER_FRAME  sim ms advanced per video frame (default 1.0 -> 33x slow at 30 fps)
     ISO_MS     isochrone spacing for STYLE=map   (default 10)
     RES SAMPLES TEST VALVE_TAGS LV_ENDO_TAG START_AZ CAM_ELEV   as in render_beat_video.py
+               (CAM_ELEV defaults to 8, or 22 for FINISH=realistic: less apex, more atria)
 """
 import bpy, bmesh, sys, os, math, json
 import numpy as np
@@ -63,6 +69,7 @@ from mathutils import Vector
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import orient as orientmod
+import realistic_look as look
 
 ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 MODE = (ARGS or ["still"])[0]
@@ -77,6 +84,9 @@ MECH = os.environ.get("MECH", "0") == "1" or MODE in ("mech", "arrhythmia")
 OUT_DIR = os.path.abspath(os.environ.get("OUT_DIR") or os.path.join(BEAT_DIR, f"ep_{SAMPLE}"))
 STYLE = os.environ.get("STYLE", "map").lower()
 FINISH = os.environ.get("FINISH", "matte").lower()
+REALISTIC = FINISH == "realistic"
+EP_GLOW = float(os.environ.get("EP_GLOW", "1.6"))
+LIGHT_SCALE = float(os.environ.get("LIGHT_SCALE", "1.4"))     # realistic only: the low front camera sees the rig obliquely
 AV_DELAY = float(os.environ.get("AV_DELAY", "0" if MECH else "100"))   # mech ATs already hold it
 MS_PER_FRAME = float(os.environ.get("MS_PER_FRAME", "1.0"))
 ISO_MS = float(os.environ.get("ISO_MS", "10"))
@@ -86,7 +96,7 @@ SAMPLES = int(os.environ.get("SAMPLES", "16" if TEST else "64"))
 VALVE_TAGS = [int(x) for x in os.environ.get("VALVE_TAGS", "7,8,9,10").split(",")]
 LV_ENDO_TAG = int(os.environ.get("LV_ENDO_TAG", "25"))
 START_AZ = float(os.environ.get("START_AZ", "180"))     # 180 = anatomical anterior
-CAM_ELEV = float(os.environ.get("CAM_ELEV", "8"))
+CAM_ELEV = float(os.environ.get("CAM_ELEV", "22" if FINISH == "realistic" else "8"))   # realistic: see the atria
 os.makedirs(OUT_DIR, exist_ok=True)
 
 # ---------------------------------------------------------------- data
@@ -120,6 +130,12 @@ CENTER = Vector(tuple((bmin + bmax) / 2))
 RADIUS = float(np.linalg.norm(_allv - (bmin + bmax) / 2, axis=1).max())
 if MECH:
     print(f"[ep] mech: {len(FRAMES)} frames x {DT_FRAME} ms -> cycle {CYCLE_MS:.0f} ms")
+# real myofibre directions (from the .lon) for the realistic finish's sheen/striations
+_fp = os.path.join(BEAT_DIR, "fibres.npz")
+FIBRES = (np.load(_fp)["surf_fiber"].astype(np.float64) @ R.T
+          if REALISTIC and os.path.exists(_fp) and "surf_fiber" in np.load(_fp) else None)
+if REALISTIC:
+    print(f"[ep] realistic: myofibres {'from fibres.npz' if FIBRES is not None else 'absent -> no sheen/striations'}")
 
 
 def surface_gradient_norm():
@@ -240,7 +256,11 @@ def make_ep_material(name, offset, a0, a1):
     delay for the ventricles); [a0, a1]: its own colour scale."""
     m = bpy.data.materials.new(name); m.use_nodes = True
     nt = m.node_tree; nt.nodes.clear(); g = G(nt)
-    b = _principled(nt)
+    if REALISTIC:   # the specimen tissue is the resting colour; the wave is mixed over it below
+        b, rest = look.specimen(nt, look.MYOCARDIUM, FIBRES is not None)
+    else:
+        b = _principled(nt)
+        rest = TISSUE if FINISH == "tissue" else REST_GREY
     T = g.value("T", -1.0).outputs[0]
     K = g.value("K", 1.0).outputs[0]
     CTRL.append((T.node, K.node))
@@ -253,7 +273,6 @@ def make_ep_material(name, offset, a0, a1):
         since = g.math("FLOORED_MODULO", since, CYCLE_MS)
     active = g.smooth(since, -0.6, 0.6)                                 # 0 before, 1 after (soft 1 ms edge)
     u = g.math("DIVIDE", g.math("SUBTRACT", at, a0), max(1e-3, a1 - a0), clamp=True)
-    rest = TISSUE if FINISH == "tissue" else REST_GREY
 
     if STYLE == "map":
         col = g.ramp(u, CARTO)
@@ -276,7 +295,11 @@ def make_ep_material(name, offset, a0, a1):
         base = g.mix(g.math("POWER", inten, 0.6), rest, glow_col)
         glow_amt = inten
 
-    if FINISH == "glow":
+    if REALISTIC:   # tissue shading comes from look.specimen; only colour + glow change here
+        nt.links.new(base, b.inputs["Base Color"])
+        nt.links.new(glow_col, b.inputs["Emission Color"])
+        nt.links.new(g.math("MULTIPLY", glow_amt, EP_GLOW), b.inputs["Emission Strength"])
+    elif FINISH == "glow":
         dim = g.mix(0.8, base, (0.0, 0.0, 0.0))                        # dark body, light comes from emission
         nt.links.new(dim, b.inputs["Base Color"])
         nt.links.new(glow_col, b.inputs["Emission Color"])
@@ -330,10 +353,18 @@ def build_heart():
     a = me.attributes.new("at", "FLOAT", "POINT"); a.data.foreach_set("value", AT)
     a = me.attributes.new("grad", "FLOAT", "POINT"); a.data.foreach_set("value", GRAD)
     # material slots: 0 = context (ghosted), 1 = atria, 2 = ventricles  (== REGION)
-    me.polygons.foreach_set("material_index", REGION)
-    me.materials.append(make_context_material())
+    slot = REGION.astype(np.int32)
+    if REALISTIC:   # context is opaque tissue: 0 = inner surfaces / valve planes, 3 = great vessels
+        slot[(REGION == 0) & np.isin(FACE_TAGS, look.VESSEL_TAGS)] = 3
+        me.materials.append(look.make_specimen("Inner", look.INNER, False, sss=0.3, muscle=False))
+    else:
+        me.materials.append(make_context_material())
+    me.polygons.foreach_set("material_index", slot)
     me.materials.append(make_ep_material("Atria", 0.0, *AT_RANGE[0]))
     me.materials.append(make_ep_material("Ventricles", AV_DELAY, *AT_RANGE[1]))
+    if REALISTIC:
+        me.materials.append(look.make_specimen("Vessels", look.VESSELS, False, sss=0.15, muscle=False))
+        look.add_attributes(me, v, FIBRES)
     me.update()
     ob = bpy.data.objects.new("Heart", me); scene.collection.objects.link(ob)
     return ob
@@ -374,23 +405,27 @@ def add_light(name, loc, energy, size, color):
     scene.collection.objects.link(o)
 
 
-# the camera looks from +Y (anterior); keep the key in front so the colours stay readable
-S = RADIUS
-add_light("Key",  (CENTER.x - 2.2 * S, 2.6 * S, CENTER.z + 2.0 * S), 60 * S * S, 5.0 * S, (1.0, 0.98, 0.95))
-add_light("Fill", (CENTER.x + 2.8 * S, 1.8 * S, CENTER.z + 0.3 * S), 26 * S * S, 6.0 * S, (0.95, 0.97, 1.0))
-add_light("Rim",  (CENTER.x + 0.4 * S, -2.8 * S, CENTER.z + 1.8 * S), 50 * S * S, 4.0 * S, (1.0, 1.0, 1.0))
-world = bpy.data.worlds.new("W"); scene.world = world; world.use_nodes = True
-bg = world.node_tree.nodes["Background"]
-bg.inputs["Color"].default_value = (1, 1, 1, 1); bg.inputs["Strength"].default_value = 0.25
+if REALISTIC:   # the realism video's soft studio rig and Cycles (AgX: the map colours shift slightly)
+    look.soft_rig(scene, CENTER, 2 * RADIUS, cam, LIGHT_SCALE)
+    look.setup_cycles(scene, SAMPLES, transparent=True)
+else:
+    # the camera looks from +Y (anterior); keep the key in front so the colours stay readable
+    S = RADIUS
+    add_light("Key",  (CENTER.x - 2.2 * S, 2.6 * S, CENTER.z + 2.0 * S), 60 * S * S, 5.0 * S, (1.0, 0.98, 0.95))
+    add_light("Fill", (CENTER.x + 2.8 * S, 1.8 * S, CENTER.z + 0.3 * S), 26 * S * S, 6.0 * S, (0.95, 0.97, 1.0))
+    add_light("Rim",  (CENTER.x + 0.4 * S, -2.8 * S, CENTER.z + 1.8 * S), 50 * S * S, 4.0 * S, (1.0, 1.0, 1.0))
+    world = bpy.data.worlds.new("W"); scene.world = world; world.use_nodes = True
+    bg = world.node_tree.nodes["Background"]
+    bg.inputs["Color"].default_value = (1, 1, 1, 1); bg.inputs["Strength"].default_value = 0.25
 
-scene.render.engine = "BLENDER_EEVEE_NEXT"
-scene.eevee.taa_render_samples = SAMPLES
-for attr in ("use_raytracing", "use_shadows", "use_gtao"):
-    if hasattr(scene.eevee, attr):
-        setattr(scene.eevee, attr, True)
+    scene.render.engine = "BLENDER_EEVEE_NEXT"
+    scene.eevee.taa_render_samples = SAMPLES
+    for attr in ("use_raytracing", "use_shadows", "use_gtao"):
+        if hasattr(scene.eevee, attr):
+            setattr(scene.eevee, attr, True)
+    scene.render.film_transparent = True
+    scene.view_settings.view_transform = "Standard"   # keep the colour map true to the colour bar
 scene.render.resolution_x = scene.render.resolution_y = RES
-scene.render.film_transparent = True
-scene.view_settings.view_transform = "Standard"       # keep the colour map true to the colour bar
 scene.render.image_settings.file_format = "PNG"
 scene.render.image_settings.color_mode = "RGBA"
 

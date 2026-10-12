@@ -240,7 +240,7 @@ shutter covers (`--shutter`, a fraction of a frame), which gives motion blur.
 |------|--------|--------------|
 | `STYLE` | `wave` | optical-mapping-like hot front with a fading tail on neutral tissue |
 | | `map` (default) | CARTO filling map: tissue takes its activation colour (red early → purple late) and keeps it, 10 ms isochrones (`ISO_MS`) of constant surface width, bright leading edge |
-| `FINISH` | `matte` (default), `glow`, `tissue` | plain shaded, emissive colours on a dark body, or fresh-tissue base with SSS + coat |
+| `FINISH` | `matte` (default), `glow`, `tissue`, `realistic` | plain shaded, emissive colours on a dark body, fresh-tissue base with SSS + coat, or [the realistic look](#the-realistic-look) (Cycles) |
 | `AV_DELAY` | `100` | ms between atrial and ventricular onset |
 | `MS_PER_FRAME` | `1.0` | sim ms per rendered frame |
 | `SAMPLE` | `74` | which `ep_<id>.npz` to use |
@@ -312,6 +312,58 @@ draw. The ranges are `lo,hi` pairs. Every frame pairs its own wave time with its
 own contraction time (`raw_arrhythmia/e<EP>_m<mech>.png`), so nothing repeats
 across beats: ~1000 renders, ~20 min per case at 1080². Motion blur uses 5 renders
 over half a frame while a wave shows (`SUBSAMPLES`, `SHUTTER`).
+
+## The realistic look
+
+A wet fresh-specimen look (`realistic_look.py`), shared by a video of its own and
+by the EP renderer. It is shading only — nothing is added to the mesh:
+
+- one dark red-pink palette for the whole myocardium (atria and ventricles alike),
+  pale great vessels, darker inner surfaces, mottled with procedural noise;
+- random-walk subsurface scattering and a water-film clear coat (Cycles);
+- when the case has `fibres.npz`, the **real myofibre directions** from the `.lon`
+  orient an anisotropic sheen and fine striations along the muscle. Without it the
+  tissue has neither — no synthetic fibre field is made up;
+- every procedural pattern is read at the frame-0 position, so it sticks to the
+  tissue while the heart beats;
+- a soft studio rig: big warm key top-left, generous fill, gentle cool rim.
+
+### Realism video (`render_realism.py`)
+
+The heart lies on its posterior wall on a dark glossy table, anterior face up, and
+the camera looks down on it from just past the vertical, over the base
+(`CAM_ELEV=100`), so the atria and great vessels show and the apex is
+foreshortened; apex at the bottom of the frame. Each frame the heart is translated (rigidly) so its lowest point touches the
+table; its shape is untouched. The camera never moves, so one cycle loops.
+
+```bash
+# look-dev stills at phases of the cycle (0..1)
+TEST=1 MAX_FRAMES=1 blender --background --factory-startup --python render_realism.py -- still 0.0
+# one real-time cycle, 1920x1080 (case 1: 31 frames, ~15 s each on an RTX 3070)
+TAG=beat_case1 blender --background --factory-startup --python render_realism.py -- beat
+ffmpeg -stream_loop 7 -framerate 30 -i <case>/realism/beat_case1/f_%04d.png \
+       -c:v libx264 -crf 18 -pix_fmt yuv420p realism_case1.mp4
+```
+
+`ROLL`/`RECLINE` set the pose, `CAM_AZ`/`CAM_ELEV`/`LENS`/`FILL`/`FSTOP` the camera,
+`STRIATE` the striation strength (0 = off), `LIGHT_SCALE` the light level;
+`RES_X`, `RES_Y`, `SAMPLES`, `TEST`, `SLOW`, `DT_FRAME` as elsewhere.
+
+### EP wave on the realistic tissue (`FINISH=realistic`)
+
+`render_ep_video.py` takes `FINISH=realistic`: the tissue the wave crosses is the
+realistic look instead of grey, the great vessels are opaque tissue instead of
+ghosted, and the wave glows over it (`EP_GLOW`, default 1.6). The camera sits
+higher (`CAM_ELEV` 22 instead of 8) to show more of the atria and less apex. It renders in Cycles
+under the same soft rig (`LIGHT_SCALE`, default 1.4: the low front camera sees the
+rig obliquely), ~10× slower than the EEVEE finishes — `mech` on case 1 is ~320
+renders, ~40 min on an RTX 3070. AgX shifts the map style's colours slightly from
+its colour bar; the wave style has no bar.
+
+```bash
+SAMPLE=cycle532 STYLE=wave FINISH=realistic blender --background --factory-startup --python render_ep_video.py -- mech
+python compose_ep_video.py <case1>/ep_cycle532/wave_realistic black ep_mech_realistic.mp4 --mech
+```
 
 ## Other scripts
 

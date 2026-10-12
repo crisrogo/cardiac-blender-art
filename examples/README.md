@@ -92,6 +92,20 @@ encode `<case>/grid_frames` the same way).
 The players for these are embedded in the [top-level README](../README.md#beating-heart-video);
 GitHub shows them as download links when viewed from this folder.
 
+### The realistic look
+
+The same case 1 time series as a wet fresh specimen lying on its posterior wall
+on a dark studio table, seen from just past the vertical over the base; one
+real-time beat (1020 ms) loops seamlessly. Shading only: the striations follow the
+case's own myofibres (`fibres.npz`, from the `.lon`). Full description:
+[The realistic look](../beat_video/README.md#the-realistic-look).
+
+| Video | Command |
+|-------|---------|
+| [`beat-video/realism-hcm1.mp4`](beat-video/realism-hcm1.mp4) | `TAG=beat_case1 blender ... --python beat_video/render_realism.py -- beat`, then `ffmpeg -stream_loop 7 -framerate 30 -i <case>/realism/beat_case1/f_%04d.png -c:v libx264 -crf 18 -pix_fmt yuv420p out.mp4` |
+
+The preview is a 540² crop of the 1920×1080 render, the beat looped 8 times.
+
 ## Electrical activation videos
 
 The end-diastolic heart (no motion, fixed anterior view) with the electrical
@@ -111,9 +125,10 @@ own. Full pipeline:
 | [`ep-video/ep-mech-hcm1.mp4`](ep-video/ep-mech-hcm1.mp4) | HCM1 cycle 532, EP **and contraction**, 2× slow, diastasis compressed, 6 beats | `python beat_video/prepare_ep.py HCM1_cycle_532_vm_act_seq.dat <case1> cycle532`, then `SAMPLE=cycle532 STYLE=wave FINISH=matte blender ... --python beat_video/render_ep_video.py -- mech`, then `python beat_video/compose_ep_video.py <case1>/ep_cycle532/wave_matte white out.mp4 --mech` |
 | [`ep-video/ep-mech-hcm3.mp4`](ep-video/ep-mech-hcm3.mp4) | HCM3 cycle 237, same settings | as above with `HCM3_cycle_237_vm_act_seq.dat`, `<case3>`, `SAMPLE=cycle237` |
 | [`ep-video/ep-mech-hcm1-slow7.mp4`](ep-video/ep-mech-hcm1-slow7.mp4) | HCM1 cycle 532 at 7× slow, 3 beats | `SLOW=7 SHUTTER=0.5 SUBSAMPLES=3` on the `mech` render, `--beats 3` |
+| [`ep-video/ep-mech-realistic-hcm1.mp4`](ep-video/ep-mech-realistic-hcm1.mp4) | HCM1 cycle 532, EP + contraction over [the realistic look](../beat_video/README.md#the-realistic-look) instead of grey, camera at 22°, black, 6 beats (Cycles) | `SAMPLE=cycle532 STYLE=wave FINISH=realistic blender ... --python beat_video/render_ep_video.py -- mech`, then `python beat_video/compose_ep_video.py <case1>/ep_cycle532/wave_realistic black out.mp4 --mech` |
 | [`ep-video/ep-arrhythmia-hcm1.mp4`](ep-video/ep-arrhythmia-hcm1.mp4) | HCM1 cycle 532, **artificial arrhythmia**: fast contractions and fast waves on independent random schedules, 10.8 s loop (seed 7) | `SAMPLE=cycle532 STYLE=wave FINISH=matte blender ... --python beat_video/render_ep_video.py -- arrhythmia`, then `python beat_video/compose_ep_video.py <case1>/ep_cycle532/wave_matte white out.mp4 --arrhythmia` |
 | [`ep-video/ep-arrhythmia-hcm3.mp4`](ep-video/ep-arrhythmia-hcm3.mp4) | HCM3 cycle 237, same settings | as above with `<case3>`, `SAMPLE=cycle237` |
-| [`ep-video/looks.png`](ep-video/looks.png) | every `STYLE` × `FINISH` at t = 160 ms, on black and on white | `STYLE=<s> FINISH=<f> blender ... -- still 160` for each combination |
+| [`ep-video/looks.png`](ep-video/looks.png) | every `STYLE` × `FINISH` at t = 160 ms, on black and on white | `STYLE=<s> FINISH=<f> blender ... -- still 160` for each combination (`CAM_ELEV=8` for `realistic`, whose default is 22) |
 
 The `ep-mech-*` and `ep-arrhythmia-*` videos use the `vm_act_seq.dat` activation
 times that drove each mechanics run (not on Zenodo). The arrhythmia is artificial:

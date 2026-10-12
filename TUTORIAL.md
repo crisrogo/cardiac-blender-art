@@ -256,6 +256,22 @@ blender --background --factory-startup --python beat_video/encode_video.py -- <c
 ```
 → every `story_<material>/` sequence tiled into one labelled 4-column montage.
 
+### C10. (optional) The realistic look
+The heart as a wet specimen lying on its posterior wall on a dark table, seen from
+above the base. Needs C1–C3, plus `fibres.npz` from C4 for the muscle striations
+(without it the tissue has none). Cycles; one real-time beat loops seamlessly.
+```powershell
+$env:BEAT_DIR="output\beat_video\case1"; $env:TEST="1"; $env:MAX_FRAMES="1"
+& $blender --background --factory-startup --python beat_video/render_realism.py -- still 0.0
+Remove-Item Env:TEST, Env:MAX_FRAMES
+$env:TAG="beat_case1"
+& $blender --background --factory-startup --python beat_video/render_realism.py -- beat
+ffmpeg -stream_loop 7 -framerate 30 -i output/beat_video/case1/realism/beat_case1/f_%04d.png -c:v libx264 -crf 18 -pix_fmt yuv420p realism_case1.mp4
+```
+→ `<case>/realism/stills/…_t000.png`, then 31 frames at 1920×1080 (~15 s each on
+an RTX 3070) looped 8×. Pose, camera and striations are env vars
+(`beat_video/README.md`, "The realistic look").
+
 ---
 
 ## Part D — the electrical activation video
@@ -283,7 +299,7 @@ patient). Sample 74 is the nearest to the baseline parameters.
 ### D3. Try the looks on single frames
 ```powershell
 $env:BEAT_DIR="output\beat_video\case1"; $env:TEST="1"
-$env:STYLE="wave"; $env:FINISH="matte"     # STYLE map|wave, FINISH matte|glow|tissue
+$env:STYLE="wave"; $env:FINISH="matte"     # STYLE map|wave, FINISH matte|glow|tissue|realistic
 & $blender --background --factory-startup --python beat_video/render_ep_video.py -- still 60 160
 ```
 → `<case>/ep_74/stills/wave_matte_el08_t060.png …` (t in ms from atrial onset;
@@ -323,6 +339,11 @@ python beat_video/compose_ep_video.py output/beat_video/case1/ep_cycle532/wave_m
 The speed is fixed when the `mech` render plans the timeline. For another speed,
 re-run the render with e.g. `$env:SLOW="7"; $env:SHUTTER="0.5"; $env:SUBSAMPLES="3"`
 (renders it already has are reused), then compose again.
+
+With `$env:FINISH="realistic"` the wave runs over the realistic look of C10
+instead of grey tissue, from a slightly higher camera (22°) that shows more of the
+atria. It renders in Cycles: ~320 renders, ~40 min for case 1 on an RTX 3070.
+Compose it on `black`.
 
 ### D7. (optional) The artificial arrhythmia
 Same inputs as D6, with the contraction and the waves on independent random
