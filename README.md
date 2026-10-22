@@ -199,6 +199,18 @@ simulation.
   </tr>
 </table>
 
+As stills: the specimen, and the wave halfway across the ventricles:
+
+<p>
+  <img src="examples/realistic/specimen-hcm1.png" width="560" alt="HCM1 as a wet fresh specimen lying on a dark table, seen from above the base">
+  <img src="examples/realistic/ep-wave-hcm1.png" width="315" alt="The activation wave glowing over the realistic tissue, halfway across the ventricles">
+</p>
+
+All five HCM hearts in the same look (only HCM1 has a fibre field, so the other
+four have no sheen or striations):
+
+<img src="examples/realistic/five-cases.png" width="100%" alt="The five HCM hearts side by side as wet specimens">
+
 ---
 
 ## Requirements

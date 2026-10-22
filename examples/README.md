@@ -106,6 +106,14 @@ case's own myofibres (`fibres.npz`, from the `.lon`). Full description:
 
 The preview is a 540² crop of the 1920×1080 render, the beat looped 8 times.
 
+Stills of the same look:
+
+| Figure | What | Command |
+|--------|------|---------|
+| [`realistic/specimen-hcm1.png`](realistic/specimen-hcm1.png) | HCM1 at the start of the cycle, the first frame of the video above (1280×720) | `TAG=beat_case1 blender ... --python beat_video/render_realism.py -- still 0.0` |
+| [`realistic/five-cases.png`](realistic/five-cases.png) | all five HCM cases at the start of the cycle, same pose and framing rule. Only HCM1 has `fibres.npz`, so HCM2–5 show the look without the fibre sheen and striations | `BEAT_DIR=<caseN> TAG=hcmN blender ... --python beat_video/render_realism.py -- still 0.0` for each case, each 1920×1080 render cropped to the heart and tiled |
+| [`realistic/ep-wave-hcm1.png`](realistic/ep-wave-hcm1.png) | the EP wave over the realistic tissue, 53 ms into ventricular activation (HCM1, cycle 532), 720² | frame `raw_mech/t_00527.png` of the `FINISH=realistic` `mech` render (see [Electrical activation videos](#electrical-activation-videos)), on black |
+
 ## Electrical activation videos
 
 The end-diastolic heart (no motion, fixed anterior view) with the electrical
